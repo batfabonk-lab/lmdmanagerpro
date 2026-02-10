@@ -11,29 +11,38 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Détection automatique PythonAnywhere
+ON_PYTHONANYWHERE = 'PYTHONANYWHERE_SITE' in os.environ or os.path.exists('/var/log/pythonanywhere')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-0^@(d49doum1_=piyq0kff7d8ey_lf9eu1ei3&m#b#6^3xo*r&'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-0^@(d49doum1_=piyq0kff7d8ey_lf9eu1ei3&m#b#6^3xo*r&')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = not ON_PYTHONANYWHERE
 
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+if ON_PYTHONANYWHERE:
+    ALLOWED_HOSTS += [os.environ.get('PYTHONANYWHERE_DOMAIN', '.pythonanywhere.com')]
 
-# CSRF Trusted Origins for development with different ports
+# CSRF Trusted Origins
 CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:8000',
     'http://localhost:8000',
     'http://127.0.0.1:56272',
     'http://localhost:56272',
 ]
+if ON_PYTHONANYWHERE:
+    PA_DOMAIN = os.environ.get('PYTHONANYWHERE_DOMAIN', '')
+    if PA_DOMAIN:
+        CSRF_TRUSTED_ORIGINS.append(f'https://{PA_DOMAIN}')
 
 
 # Application definition
@@ -85,20 +94,38 @@ WSGI_APPLICATION = 'lmdmanagersystem.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'lmdmanager',
-        'USER': 'root',
-        'PASSWORD': '',
-        'HOST': 'localhost',
-        'PORT': '3306',
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
+if ON_PYTHONANYWHERE:
+    # ═══ PYTHONANYWHERE : modifiez ces valeurs ═══
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.environ.get('DB_NAME', 'votreuser$lmdmanager'),
+            'USER': os.environ.get('DB_USER', 'votreuser'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'HOST': os.environ.get('DB_HOST', 'votreuser.mysql.pythonanywhere-services.com'),
+            'PORT': '3306',
+            'OPTIONS': {
+                'charset': 'utf8mb4',
+                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            },
+        }
     }
-}
+else:
+    # ═══ LOCAL ═══
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': 'lmdmanager',
+            'USER': 'root',
+            'PASSWORD': '',
+            'HOST': 'localhost',
+            'PORT': '3306',
+            'OPTIONS': {
+                'charset': 'utf8mb4',
+                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            },
+        }
+    }
 
 # Ajout pour PyMySQL
 import pymysql
@@ -140,9 +167,9 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = 'static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
-# STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [BASE_DIR / 'static'] if os.path.isdir(BASE_DIR / 'static') else []
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Media files
 MEDIA_URL = '/media/'
