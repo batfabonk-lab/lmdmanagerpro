@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+
+{% block title %}Mes cours{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">
+        <i class="bi bi-journals me-2"></i>
+        Mes cours
+    </h2>
+    <div class="text-muted">
+        {% if annee_code %}<span class="badge bg-primary">{{ annee_code }}</span>{% endif %}
+        {% if classe_active %}<span class="badge bg-secondary">{{ classe_active.code_classe }}</span>{% endif %}
+    </div>
+</div>
+
+<!-- Filtres -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-3">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-12 col-md-4">
+                <label class="form-label fw-semibold"><i class="bi bi-calendar-range me-1 text-primary"></i>Année académique</label>
+                <select name="annee" class="form-select shadow-sm" onchange="this.form.submit()">
+                    {% for ins in inscriptions %}
+                        <option value="{{ ins.annee_academique }}" {% if annee_code == ins.annee_academique %}selected{% endif %}>
+                            {{ ins.annee_academique }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label fw-semibold"><i class="bi bi-filter me-1 text-primary"></i>Filtrer par semestre</label>
+                <select name="semestre" class="form-select shadow-sm" onchange="this.form.submit()">
+                    <option value="">Tous les semestres</option>
+                    {% for semestre in semestres %}
+                        <option value="{{ semestre }}" {% if semestre_filter == semestre|stringformat:"s" %}selected{% endif %}>
+                            S{{ semestre }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <input type="hidden" name="annee" value="{{ annee_code }}">
+            </div>
+            <div class="col-12 col-md-5 d-flex justify-content-start justify-content-md-end">
+                <a class="btn btn-outline-secondary w-100 w-md-auto" href="{% url 'etudiant_mes_cours' %}">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Réinitialiser
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if cours_list %}
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-0">
+        <strong>Liste des cours</strong>
+        <span class="badge bg-info text-dark ms-2">{{ cours_list|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Semestre</th>
+                        <th>Code</th>
+                        <th>Intitulé</th>
+                        <th>Type</th>
+                        <th>Crédits</th>
+                        <th>Catégorie</th>
+                        <th>Enseignant(s)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cours in cours_list %}
+                    <tr>
+                        <td>
+                            {% if cours.semestre %}
+                                <span class="badge bg-light text-dark">S{{ cours.semestre }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="badge bg-secondary">{{ cours.code }}</span></td>
+                        <td><strong>{{ cours.intitule }}</strong></td>
+                        <td>
+                            <span class="badge {% if cours.type == 'UE' %}bg-info{% else %}bg-success{% endif %}">{{ cours.type }}</span>
+                        </td>
+                        <td>{{ cours.credit }}</td>
+                        <td>
+                            {% if cours.categorie %}
+                                <span class="badge bg-light text-dark">{{ cours.categorie }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ cours.enseignants|join:", " }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>
+    Aucun cours trouvé pour cette année.
+</div>
+{% endif %}
+{% endblock %}

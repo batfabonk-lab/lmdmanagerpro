@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Profils étudiants - {{ classe.code_classe }} - {{ annee }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 1cm;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 10pt;
+        }
+        .page-break {
+            page-break-after: always;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+        .header h1 {
+            margin: 5px 0;
+            font-size: 18pt;
+        }
+        .header h2 {
+            margin: 5px 0;
+            font-size: 14pt;
+            color: #666;
+        }
+        .info-section {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+        }
+        .info-section p {
+            margin: 5px 0;
+        }
+        .section-title {
+            background: #333;
+            color: white;
+            padding: 8px;
+            margin: 15px 0 10px 0;
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            border: 1px solid #333;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background: #e0e0e0;
+            font-weight: bold;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 9pt;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    {% for etudiant in etudiants %}
+    <div class="{% if not forloop.last %}page-break{% endif %}">
+        <div class="header">
+            <h1>PROFIL ÉTUDIANT</h1>
+            <h2>{{ classe.code_classe }} - Année académique {{ annee }}</h2>
+        </div>
+
+        <div class="info-section">
+            <p><strong>Matricule:</strong> {{ etudiant.matricule }}</p>
+            <p><strong>Nom complet:</strong> {{ etudiant.nom }}</p>
+            <p><strong>Classe:</strong> {{ classe.code_classe }}</p>
+        </div>
+
+        <div class="section-title">RÉSULTATS ACADÉMIQUES</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Semestre</th>
+                    <th>Moyenne</th>
+                    <th>Crédits obtenus</th>
+                    <th>Décision</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td colspan="4" style="text-align: center; font-style: italic; color: #666;">
+                        Données à compléter selon les délibérations
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="section-title">PARCOURS</div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Année</th>
+                    <th>Classe</th>
+                    <th>Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ annee }}</td>
+                    <td>{{ classe.code_classe }}</td>
+                    <td>Inscrit(e)</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="footer">
+            <p>Document généré le {{ "now"|date:"d/m/Y à H:i" }}</p>
+        </div>
+    </div>
+    {% endfor %}
+</body>
+</html>

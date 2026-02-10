@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %}Supprimer Inscription{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white"><h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Confirmer la Suppression</h5></div>
+                <div class="card-body">
+                    <div class="alert alert-danger"><strong>Attention !</strong> Cette action est irréversible.</div>
+                    <h6 class="mb-3">Voulez-vous vraiment supprimer cette inscription ?</h6>
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <p><strong>Code :</strong> {{ inscription.code_inscription }}</p>
+                            <p><strong>Année Académique :</strong> {{ inscription.annee_academique }}</p>
+                            <p><strong>Étudiant :</strong> {{ inscription.matricule_et.nom_complet }}</p>
+                            <p><strong>Classe :</strong> {{ inscription.code_classe }}</p>
+                        </div>
+                    </div>
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'gestion_inscriptions' %}" class="btn btn-secondary"><i class="bi bi-arrow-left me-2"></i>Annuler</a>
+                            <button type="submit" class="btn btn-danger"><i class="bi bi-trash me-2"></i>Confirmer</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,371 @@
+{% extends 'base.html' %}
+
+{% block title %}Communiqué - Jury{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Modern styles for communiqué form */
+.hero-section-communique {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    padding: 3rem 0;
+    border-radius: 20px;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-section-communique::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    opacity: 0.3;
+}
+
+.modern-form-card {
+    border: none;
+    border-radius: 20px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+    background: white;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.modern-form-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+}
+
+.form-header {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.form-header h5 {
+    color: #1e293b;
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.form-header .icon-wrapper {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.modern-form-control {
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.modern-form-control:focus {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+    outline: none;
+}
+
+.modern-form-label {
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.modern-btn-primary {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    border: none;
+    border-radius: 12px;
+    padding: 0.75rem 2rem;
+    color: white;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.modern-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(245, 158, 11, 0.3);
+    color: white;
+}
+
+.history-card {
+    border: none;
+    border-radius: 20px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+    background: white;
+    overflow: hidden;
+}
+
+.history-header {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: between;
+    align-items: center;
+}
+
+.history-header h5 {
+    color: #1e293b;
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.communique-item {
+    background: #f8fafc;
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    border: 1px solid #e2e8f0;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.communique-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.communique-item:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.badge-modern {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #94a3b8;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.stats-badge {
+    background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+    .hero-section-communique {
+        padding: 2rem 0;
+        margin-bottom: 1.5rem;
+    }
+    
+    .modern-form-card, .history-card {
+        border-radius: 16px;
+    }
+    
+    .form-header, .history-header {
+        padding: 1rem 1.5rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="hero-section-communique mb-5">
+    <div class="container">
+        <div class="text-center">
+            <h1 class="display-4 fw-bold mb-3">
+                <i class="bi bi-megaphone-fill me-3"></i>
+                Communiqué - Classe {{ classe.code_classe }}
+            </h1>
+            <p class="lead mb-0" style="opacity: 0.95;">
+                Gérez les communications officielles de délibération
+            </p>
+            {% if annee_code %}
+            <div class="mt-3">
+                <span class="badge bg-light text-dark badge-modern">{{ annee_code }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="row">
+        <div class="col-lg-5 mb-4">
+            <!-- Formulaire de publication -->
+            <div class="modern-form-card animate-fade-in">
+                <div class="form-header">
+                    <h5>
+                        <div class="icon-wrapper">
+                            <i class="bi bi-send-fill"></i>
+                        </div>
+                        Publier un communiqué
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post" class="row g-3">
+                        {% csrf_token %}
+                        <div class="col-12">
+                            <label class="modern-form-label">
+                                <i class="bi bi-calendar3"></i>
+                                Année académique
+                            </label>
+                            <select name="annee_academique" class="form-control modern-form-control" required>
+                                {% for annee in annees %}
+                                    <option value="{{ annee.code_anac }}" {% if annee_code == annee.code_anac %}selected{% endif %}>
+                                        {{ annee.designation_anac }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="modern-form-label">
+                                <i class="bi bi-calendar-event"></i>
+                                Date de délibération
+                            </label>
+                            <input type="date" class="form-control modern-form-control" name="date_deliberation" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="modern-form-label">
+                                <i class="bi bi-chat-left-text"></i>
+                                Message (optionnel)
+                            </label>
+                            <textarea class="form-control modern-form-control" name="contenu" rows="4" style="resize:none;" placeholder="Ex: La délibération aura lieu le ..."></textarea>
+                        </div>
+                        <div class="col-12 d-flex justify-content-end mt-4">
+                            <button type="submit" class="modern-btn-primary">
+                                <i class="bi bi-send-fill"></i>
+                                Publier
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-7">
+            <!-- Historique des communiqués -->
+            <div class="history-card animate-fade-in" style="animation-delay: 0.1s;">
+                <div class="history-header">
+                    <h5>
+                        <div class="icon-wrapper">
+                            <i class="bi bi-clock-history"></i>
+                        </div>
+                        Historique des communiqués
+                    </h5>
+                    <span class="stats-badge">{{ communiques|length }} communiqué(s)</span>
+                </div>
+                <div class="card-body p-4">
+                    {% if communiques %}
+                        {% for c in communiques %}
+                        <div class="communique-item animate-fade-in" data-delay="{{ forloop.counter0 }}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="mb-3">
+                                        <span class="badge-modern" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;">
+                                            <i class="bi bi-calendar-check me-1"></i>
+                                            Délibération: {{ c.date_deliberation|date:"d/m/Y" }}
+                                        </span>
+                                        <span class="badge-modern bg-secondary ms-2">
+                                            <i class="bi bi-book me-1"></i>
+                                            {{ c.annee_academique }}
+                                        </span>
+                                    </div>
+                                    {% if c.contenu %}
+                                        <div class="text-muted" style="white-space: pre-wrap; line-height: 1.6;">{{ c.contenu }}</div>
+                                    {% else %}
+                                        <div class="text-muted fst-italic">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            Aucun message détaillé.
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <div class="text-end ms-3">
+                                    <small class="text-muted">
+                                        <i class="bi bi-clock me-1"></i>
+                                        {{ c.date_creation|date:"d/m/Y H:i" }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">
+                            <i class="bi bi-megaphone"></i>
+                            <h5 class="mt-3">Aucun communiqué publié</h5>
+                            <p class="text-muted">
+                                Commencez par publier votre premier communiqué en utilisant le formulaire.
+                            </p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Animation pour les éléments */
+.animate-fade-in {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.6s ease-out forwards;
+}
+
+@keyframes fadeInUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Animation delays using data attributes */
+.animate-fade-in[data-delay="0"] { animation-delay: 200ms; }
+.animate-fade-in[data-delay="1"] { animation-delay: 400ms; }
+.animate-fade-in[data-delay="2"] { animation-delay: 600ms; }
+.animate-fade-in[data-delay="3"] { animation-delay: 800ms; }
+.animate-fade-in[data-delay="4"] { animation-delay: 1000ms; }
+.animate-fade-in[data-delay="5"] { animation-delay: 1200ms; }
+.animate-fade-in[data-delay="6"] { animation-delay: 1400ms; }
+.animate-fade-in[data-delay="7"] { animation-delay: 1600ms; }
+.animate-fade-in[data-delay="8"] { animation-delay: 1800ms; }
+.animate-fade-in[data-delay="9"] { animation-delay: 2000ms; }
+</style>
+{% endblock %}

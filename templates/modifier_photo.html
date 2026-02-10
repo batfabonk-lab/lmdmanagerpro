@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+{% block title %}Modifier ma Photo{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-camera me-2"></i>
+                        Modifier ma Photo de Profil
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <!-- Zone Photo -->
+                        <div class="mb-4">
+                            <div class="photo-upload-zone" onclick="document.getElementById('photo-input-profil').click();" style="width: 150px; height: 150px; margin: 0 auto; border: 3px dashed #ccc; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; background: #f8f9fa; overflow: hidden; transition: all 0.3s;">
+                                {% if photo_actuelle %}
+                                <img src="{{ photo_actuelle.url }}" alt="Photo actuelle" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                                {% else %}
+                                <i class="bi bi-person-circle fs-1 text-muted"></i>
+                                <small class="text-muted">Aucune photo</small>
+                                {% endif %}
+                            </div>
+                            {{ form.photo }}
+                            <p class="text-muted mt-3">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Cliquez sur la photo pour en sélectionner une nouvelle
+                            </p>
+                        </div>
+                        
+                        <div class="d-flex justify-content-center gap-3">
+                            <a href="{% if request.user.role == 'ETUDIANT' %}{% url 'etudiant_dashboard' %}{% elif request.user.role == 'ENSEIGNANT' %}{% url 'enseignant_dashboard' %}{% else %}{% url 'home' %}{% endif %}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>
+                                Retour
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save me-2"></i>
+                                Enregistrer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const photoInput = document.getElementById('photo-input-profil');
+    if (photoInput) {
+        photoInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const zone = document.querySelector('.photo-upload-zone');
+                    zone.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+    
+    // Effet hover sur la zone
+    const zone = document.querySelector('.photo-upload-zone');
+    if (zone) {
+        zone.addEventListener('mouseenter', function() {
+            this.style.borderColor = '#0d6efd';
+            this.style.transform = 'scale(1.05)';
+        });
+        zone.addEventListener('mouseleave', function() {
+            this.style.borderColor = '#ccc';
+            this.style.transform = 'scale(1)';
+        });
+    }
+});
+</script>
+{% endblock %}

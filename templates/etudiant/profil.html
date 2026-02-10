@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+
+{% block title %}Mon Profil{% endblock %}
+
+{% block content %}
+<div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+    <div class="card-body text-white py-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-1">
+                    <i class="bi bi-person-badge me-2"></i>
+                    Mon Profil
+                </h2>
+                <p class="mb-0 opacity-75">
+                    <i class="bi bi-info-circle me-1"></i>Informations personnelles et académiques
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-lg overflow-hidden">
+            <div class="text-center text-white py-5" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                <div class="position-relative d-inline-block mb-3">
+                    {% if etudiant.photo %}
+                        <img src="{{ etudiant.photo.url }}" alt="Photo" class="rounded-circle border border-5 border-white shadow-lg" style="width: 150px; height: 150px; object-fit: cover;">
+                    {% else %}
+                        <div class="rounded-circle bg-white d-inline-flex align-items-center justify-content-center shadow-lg" style="width: 150px; height: 150px;">
+                            <i class="bi bi-person-fill" style="font-size: 70px; color: #11998e;"></i>
+                        </div>
+                    {% endif %}
+                    {% if not is_simulation %}
+                        <a href="{% url 'modifier_ma_photo' %}" class="btn btn-sm btn-light rounded-circle position-absolute shadow-lg" style="bottom: 5px; right: 5px; width: 40px; height: 40px; padding: 0;" title="Modifier ma photo">
+                            <i class="bi bi-camera-fill" style="color: #11998e; font-size: 18px;"></i>
+                        </a>
+                    {% endif %}
+                </div>
+                <h3 class="mb-2 fw-bold">{{ etudiant.nom_complet }}</h3>
+                <p class="mb-0 opacity-75 fs-5"><i class="bi bi-hash me-1"></i>{{ etudiant.matricule_et }}</p>
+            </div>
+            <div class="card-body p-4">
+                <h6 class="text-uppercase text-muted mb-3 fw-bold" style="letter-spacing: 1px;"><i class="bi bi-person-lines-fill me-2"></i>Informations personnelles</h6>
+                <div class="d-flex align-items-center mb-3 p-2 rounded" style="background-color: #f8f9fa;">
+                    <div class="rounded-circle bg-white d-flex align-items-center justify-content-center me-3 shadow-sm" style="width: 40px; height: 40px;">
+                        <i class="bi bi-telephone-fill" style="color:#11998e; font-size: 18px;"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted">Téléphone</div>
+                        <div class="fw-semibold">{{ etudiant.telephone|default:"Non renseigné" }}</div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center mb-3 p-2 rounded" style="background-color: #f8f9fa;">
+                    <div class="rounded-circle bg-white d-flex align-items-center justify-content-center me-3 shadow-sm" style="width: 40px; height: 40px;">
+                        <i class="bi bi-flag-fill" style="color:#11998e; font-size: 18px;"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted">Nationalité</div>
+                        <div class="fw-semibold">{{ etudiant.nationalite|default:"Non renseignée" }}</div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center mb-3 p-2 rounded" style="background-color: #f8f9fa;">
+                    <div class="rounded-circle bg-white d-flex align-items-center justify-content-center me-3 shadow-sm" style="width: 40px; height: 40px;">
+                        <i class="bi bi-gender-ambiguous" style="color:#11998e; font-size: 18px;"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted">Sexe</div>
+                        <div class="fw-semibold">{{ etudiant.get_sexe_display }}</div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center p-2 rounded" style="background-color: #f8f9fa;">
+                    <div class="rounded-circle bg-white d-flex align-items-center justify-content-center me-3 shadow-sm" style="width: 40px; height: 40px;">
+                        <i class="bi bi-calendar-event-fill" style="color:#11998e; font-size: 18px;"></i>
+                    </div>
+                    <div>
+                        <div class="small text-muted">Date de naissance</div>
+                        <div class="fw-semibold">{{ etudiant.date_naiss|date:"d/m/Y" }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-lg">
+            <div class="card-header text-white border-0 py-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <strong class="fs-5"><i class="bi bi-mortarboard-fill me-2"></i>Inscription active</strong>
+            </div>
+            <div class="card-body p-4">
+                {% if inscription_active %}
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="p-4 rounded shadow-sm" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle bg-white d-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px;">
+                                        <i class="bi bi-building" style="color:#f5576c; font-size: 24px;"></i>
+                                    </div>
+                                    <div class="text-white">
+                                        <div class="small opacity-75">Classe</div>
+                                        <div class="fs-4 fw-bold">{{ inscription_active.code_classe.code_classe }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-4 rounded shadow-sm" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle bg-white d-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px;">
+                                        <i class="bi bi-calendar-check" style="color:#11998e; font-size: 24px;"></i>
+                                    </div>
+                                    <div class="text-white">
+                                        <div class="small opacity-75">Année académique</div>
+                                        <div class="fs-4 fw-bold">{{ inscription_active.annee_academique }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-4 rounded shadow-sm" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle bg-white d-flex align-items-center justify-content-center me-3" style="width: 50px; height: 50px;">
+                                        <i class="bi bi-people" style="color:#fa709a; font-size: 24px;"></i>
+                                    </div>
+                                    <div class="text-white">
+                                        <div class="small opacity-75">Cohorte</div>
+                                        <div class="fs-4 fw-bold">{% if inscription_active.cohorte %}{{ inscription_active.cohorte }}{% else %}-{% endif %}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-exclamation-circle display-4 opacity-25"></i>
+                        <div class="mt-3 fs-5">Aucune inscription trouvée</div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if is_simulation %}
+        <div class="alert alert-warning mt-4 mb-0 shadow-sm border-0">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-eye-fill me-3" style="font-size: 24px;"></i>
+                <div>
+                    <strong>Mode visualisation Admin</strong>
+                    <div class="small">La modification de la photo est désactivée</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,355 @@
+{% extends 'base.html' %}
+
+{% block title %}Évaluations - Jury{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h4 class="mb-0"><i class="bi bi-clipboard2-pulse me-2"></i>Évaluations</h4>
+        <div class="text-muted">
+            <small>Total: {{ total_evaluations }} évaluations</small>
+        </div>
+    </div>
+
+    <!-- Tableau de bord des statistiques -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-primary">
+                        <i class="bi bi-award me-2"></i>Crédits Totaux
+                    </h5>
+                    <h2 class="display-4">{{ stats.total_credits }}</h2>
+                    <p class="text-muted mb-0">Total des crédits dans la grille</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-success">
+                        <i class="bi bi-check-circle me-2"></i>Crédits Capitalisés
+                    </h5>
+                    <h2 class="display-4">{{ stats.total_credits_capitalises }}</h2>
+                    <p class="text-muted mb-0">Crédits validés ({{ stats.taux_capitalisation }}%)</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-info">
+                        <i class="bi bi-graph-up me-2"></i>Moyennes par Catégorie
+                    </h5>
+                    <div class="row">
+                        <div class="col-6">
+                            <h4 class="text-info">Cat A</h4>
+                            <h5>{{ stats.moyenne_cat_a }}/20</h5>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="text-info">Cat B</h4>
+                            <h5>{{ stats.moyenne_cat_b }}/20</h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-warning">
+                        <i class="bi bi-calculator me-2"></i>Moyenne Pondérée
+                    </h5>
+                    <h2 class="display-4">{{ stats.moyenne_ponderee_globale }}</h2>
+                    <p class="text-muted mb-0">Moyenne globale pondérée /20</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <form method="get" class="row g-2 align-items-end" id="filterForm">
+                <div class="col-md-2">
+                    <label class="form-label">Année académique</label>
+                    <select name="annee" class="form-select">
+                        <option value="">Toutes</option>
+                        {% for a in annees %}
+                            <option value="{{ a }}" {% if selected_annee == a %}selected{% endif %}>{{ a }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Semestre</label>
+                    <select name="semestre" class="form-select">
+                        <option value="">Tous</option>
+                        {% for s in semestres %}
+                            <option value="{{ s }}" {% if selected_semestre == s|stringformat:"s" %}selected{% endif %}>S{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Catégorie</label>
+                    <select name="categorie" class="form-select">
+                        <option value="">Toutes</option>
+                        <option value="A" {% if selected_categorie == 'A' %}selected{% endif %}>A</option>
+                        <option value="B" {% if selected_categorie == 'B' %}selected{% endif %}>B</option>
+                        <option value="AUCUNE" {% if selected_categorie == 'AUCUNE' %}selected{% endif %}>Aucune</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Étudiant</label>
+                    <select name="etudiant" class="form-select">
+                        <option value="">Tous les étudiants</option>
+                        {% for etudiant in etudiants %}
+                            <option value="{{ etudiant.matricule_et }}" {% if selected_etudiant == etudiant.matricule_et %}selected{% endif %}>
+                                {{ etudiant.matricule_et }} - {{ etudiant.nom_complet }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search me-1"></i>Filtrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Actions groupées -->
+    <div class="card mb-3" id="actionsCard" style="display: none;">
+        <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="text-muted">Sélectionné(s): <span id="selectedCount">0</span> évaluation(s)</span>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-danger" onclick="performAction('delete')">
+                        <i class="bi bi-trash me-1"></i>Supprimer les évaluations sélectionnées
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tableau des évaluations -->
+    <div class="card">
+        <div class="card-body">
+            <div class="text-muted mb-2">
+                <small>Affichage de {{ evaluations|length }} évaluation(s)</small>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover table-sm">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 40px;">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="selectAllEvals" onchange="toggleAllEvals()">
+                                    <label class="form-check-label" for="selectAllEvals"></label>
+                                </div>
+                            </th>
+                            <th>Matricule</th>
+                            <th>Semestre</th>
+                            <th>Intitulé UE</th>
+                            <th>Intitulé EC</th>
+                            <th>Catégorie</th>
+                            <th class="text-center">Crédit</th>
+                            <th class="text-center">CC</th>
+                            <th class="text-center">Examen</th>
+                            <th class="text-center">NoteF (CC+Ex)</th>
+                            <th class="text-center">Note Pondérée</th>
+                            <th class="text-center">Rattrapage</th>
+                            <th class="text-center">Statut</th>
+                            <th class="text-center" style="width: 120px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for eval in evaluations %}
+                            <tr>
+                                <td>
+                                    <div class="form-check">
+                                        <input class="form-check-input eval-checkbox" type="checkbox" 
+                                               value="{{ eval.id }}" onchange="updateActionButtons()">
+                                        <label class="form-check-label"></label>
+                                    </div>
+                                </td>
+                                <td><strong>{{ eval.matricule_etudiant }}</strong></td>
+                                <td>
+                                    {% if eval.semestre %}
+                                        <span class="badge bg-primary">S{{ eval.semestre }}</span>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>{{ eval.intitule_ue }}</td>
+                                <td>{{ eval.intitule_ec }}</td>
+                                <td>
+                                    {% if eval.categorie %}
+                                        <span class="badge bg-info">{{ eval.categorie }}</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">{{ eval.credit }}</td>
+                                <td class="text-center">
+                                    {% if eval.cc is not None %}
+                                        {{ eval.cc }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if eval.examen is not None %}
+                                        {{ eval.examen }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if eval.note_finale is not None %}
+                                        <span class="badge {% if eval.note_finale >= 10 %}bg-success{% elif eval.note_finale >= 8 %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ eval.note_finale }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if eval.note_ponderee > 0 %}
+                                        {{ eval.note_ponderee }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if eval.rattrapage is not None %}
+                                        <span class="badge bg-warning text-dark">{{ eval.rattrapage }}</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if eval.statut == 'VALIDE' %}
+                                        <span class="badge bg-success">Validé</span>
+                                    {% elif eval.statut == 'NON_VALIDE' %}
+                                        <span class="badge bg-danger">Non validé</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">En cours</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <a href="{% url 'jury_evaluation_edit' eval.id %}" class="btn btn-outline-primary btn-sm" title="Modifier">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="14" class="text-center text-muted">
+                                    Aucune évaluation trouvée pour les critères sélectionnés
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Gérer la soumission du formulaire de filtres
+document.addEventListener('DOMContentLoaded', function() {
+    const filterForm = document.getElementById('filterForm');
+    if (filterForm) {
+        // Ajouter un écouteur sur tous les selects
+        filterForm.querySelectorAll('select').forEach(select => {
+            select.addEventListener('change', function() {
+                console.log('Changement détecté:', this.name, this.value);
+                filterForm.submit();
+            });
+        });
+    }
+});
+
+function toggleAllEvals() {
+    const selectAll = document.getElementById('selectAllEvals');
+    const checkboxes = document.querySelectorAll('.eval-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+    updateActionButtons();
+}
+
+function updateActionButtons() {
+    const checkboxes = document.querySelectorAll('.eval-checkbox:checked');
+    const actionsCard = document.getElementById('actionsCard');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    const hasSelection = checkboxes.length > 0;
+    actionsCard.style.display = hasSelection ? 'block' : 'none';
+    selectedCount.textContent = checkboxes.length;
+}
+
+function performAction(action) {
+    const checkboxes = document.querySelectorAll('.eval-checkbox:checked');
+    const evalIds = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (evalIds.length === 0) {
+        alert('Veuillez sélectionner au moins une évaluation.');
+        return;
+    }
+    
+    if (action === 'delete' && !confirm(`Êtes-vous sûr de vouloir supprimer ${evalIds.length} évaluation(s) ?`)) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('action', action);
+    evalIds.forEach(id => formData.append('evaluation_ids[]', id));
+    
+    fetch('{% url "jury_evaluations_action" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Erreur: ' + error);
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Initialiser
+document.addEventListener('DOMContentLoaded', function() {
+    updateActionButtons();
+});
+</script>
+
+{% endblock %}

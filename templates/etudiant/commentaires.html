@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block title %}Commentaires{% endblock %}
+
+{% block content %}
+<div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+    <div class="card-body text-white py-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-1">
+                    <i class="bi bi-chat-dots me-2"></i>
+                    Mes Commentaires
+                </h2>
+                <p class="mb-0 opacity-75">
+                    <i class="bi bi-info-circle me-1"></i>Partagez vos retours sur les cours
+                </p>
+            </div>
+            <div>
+                {% if annee_code %}<span class="badge bg-white text-dark me-1">{{ annee_code }}</span>{% endif %}
+                {% if classe_active %}<span class="badge bg-white text-dark">{{ classe_active.code_classe }}</span>{% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-gradient text-white border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <strong><i class="bi bi-plus-circle me-2"></i>Nouveau commentaire</strong>
+    </div>
+    <div class="card-body bg-light">
+        {% if cours_list %}
+        <form method="post">
+            {% csrf_token %}
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <label class="form-label fw-semibold"><i class="bi bi-book me-1 text-primary"></i>Cours</label>
+                    <select class="form-select shadow-sm" name="code_cours" required>
+                        <option value="">-- Sélectionner un cours --</option>
+                        {% for cours in cours_list %}
+                        <option value="{{ cours.code }}" data-type="{{ cours.type }}">[{{ cours.type }}] {{ cours.intitule }} ({{ cours.code }})</option>
+                        {% endfor %}
+                    </select>
+                    <input type="hidden" name="type_cours" id="typeCours">
+                </div>
+                <div class="col-md-7">
+                    <label class="form-label fw-semibold"><i class="bi bi-chat-square-text me-1 text-success"></i>Commentaire</label>
+                    <textarea class="form-control shadow-sm" name="contenu" rows="3" required style="resize:none;" placeholder="Partagez votre avis, suggestions ou remarques sur ce cours..."></textarea>
+                </div>
+                <div class="col-12 d-flex justify-content-end">
+                    <button class="btn btn-primary btn-lg shadow-sm" type="submit" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+                        <i class="bi bi-send-fill me-2"></i>Envoyer le commentaire
+                    </button>
+                </div>
+            </div>
+        </form>
+        {% else %}
+        <div class="alert alert-warning mb-0">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Aucun cours trouvé pour cette année. Impossible d'ajouter un commentaire.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center py-3">
+        <strong class="fs-5"><i class="bi bi-clock-history me-2 text-info"></i>Historique des commentaires</strong>
+        <span class="badge bg-info text-white fs-6">{{ commentaires|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if commentaires %}
+        <div class="list-group list-group-flush">
+            {% for comm in commentaires %}
+            <div class="list-group-item px-4 py-3 border-0 border-bottom hover-shadow" style="transition: all 0.2s;">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <span class="badge {% if comm.type_cours == 'UE' %}bg-info{% else %}bg-success{% endif %} me-1">{{ comm.type_cours }}</span>
+                        <span class="badge bg-dark">{{ comm.code_cours }}</span>
+                        <span class="ms-1 fw-semibold">{{ comm.intitule_cours }}</span>
+                        {% if comm.enseignant_nom %}
+                        <span class="text-muted ms-2"><i class="bi bi-person-fill me-1"></i>{{ comm.enseignant_nom }}</span>
+                        {% endif %}
+                    </div>
+                    <small class="text-muted"><i class="bi bi-calendar3 me-1"></i>{{ comm.date_creation|date:"d/m/Y H:i" }}</small>
+                </div>
+                <div class="mt-2 p-3 bg-light rounded" style="white-space: pre-wrap; border-left: 3px solid #667eea;">
+                    <i class="bi bi-quote text-muted me-2"></i>{{ comm.contenu }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="bi bi-chat-square-text display-3 opacity-25"></i>
+            <div class="mt-3 fs-5">Aucun commentaire pour le moment</div>
+            <div class="small">Commencez par ajouter votre premier commentaire ci-dessus</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+(function() {
+    var select = document.querySelector('select[name="code_cours"]');
+    var typeInput = document.getElementById('typeCours');
+    if (!select || !typeInput) return;
+    function syncType() {
+        var opt = select.options[select.selectedIndex];
+        var t = opt ? opt.getAttribute('data-type') : '';
+        typeInput.value = t || '';
+    }
+    select.addEventListener('change', syncType);
+    syncType();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,535 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Accueil - Système LMD{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Modern styles for homepage */
+.hero-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 4rem 0;
+    border-radius: 20px;
+    margin-bottom: 3rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    opacity: 0.3;
+}
+
+.hero-content {
+    position: relative;
+    z-index: 1;
+}
+
+.modern-card {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    background: white;
+    height: 100%;
+}
+
+.modern-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.modern-card .card-body {
+    padding: 2rem;
+    text-align: center;
+}
+
+.modern-card .icon-wrapper {
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    font-size: 2rem;
+    position: relative;
+    background: linear-gradient(135deg, var(--icon-color-1), var(--icon-color-2));
+    color: white;
+}
+
+.modern-card .icon-wrapper::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 22px;
+    background: linear-gradient(135deg, var(--icon-color-1), var(--icon-color-2));
+    opacity: 0.2;
+    z-index: -1;
+}
+
+.modern-card h5 {
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #2d3748;
+}
+
+.modern-card p {
+    color: #718096;
+    line-height: 1.6;
+}
+
+.stats-card {
+    border: none;
+    border-radius: 16px;
+    padding: 1.5rem;
+    color: white;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.stats-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100px;
+    height: 100px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    transform: translate(30px, -30px);
+}
+
+.stats-card:hover {
+    transform: scale(1.05);
+}
+
+.stats-card .stats-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    opacity: 0.9;
+}
+
+.stats-card .stats-number {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.stats-card .stats-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    font-weight: 500;
+}
+
+.hover-card {
+    transition: all 0.3s ease;
+}
+
+.hover-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.feature-section {
+    background: #f8fafc;
+    border-radius: 20px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.gradient-text {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.modern-btn {
+    border-radius: 12px;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: none;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.modern-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Icon color variables */
+.icon-students { --icon-color-1: #3b82f6; --icon-color-2: #1d4ed8; }
+.icon-teachers { --icon-color-1: #10b981; --icon-color-2: #059669; }
+.icon-jury { --icon-color-1: #f59e0b; --icon-color-2: #d97706; }
+.icon-ue { --icon-color-1: #06b6d4; --icon-color-2: #0891b2; }
+.icon-ec { --icon-color-1: #ef4444; --icon-color-2: #dc2626; }
+.icon-cohortes { --icon-color-1: #8b5cf6; --icon-color-2: #7c3aed; }
+.icon-inscriptions { --icon-color-1: #ec4899; --icon-color-2: #db2777; }
+.icon-attributions { --icon-color-1: #f97316; --icon-color-2: #ea580c; }
+.icon-settings { --icon-color-1: #6b7280; --icon-color-2: #4b5563; }
+
+/* Animation for cards */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .hero-section {
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+    }
+    
+    .modern-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    .modern-card .icon-wrapper {
+        width: 60px;
+        height: 60px;
+        font-size: 1.5rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="hero-section mb-5">
+    <div class="container">
+        <div class="hero-content text-center">
+            <div class="animate-fade-in">
+                <div class="mb-4">
+                    <img src="{% static 'core/img/lmdlogo.png' %}" alt="LMDManagerPro" style="height: 120px; width: 120px; object-fit: contain; border-radius: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.3);">
+                </div>
+                <h1 class="display-3 fw-bold mb-4">
+                    Bienvenue sur LMDManagerPro
+                </h1>
+                <p class="lead mb-4" style="opacity: 0.95;">
+                    Plateforme complète de gestion intelligente des institutions académiques
+                </p>
+                <div class="mt-4">
+                    {% if user.is_authenticated and user.is_staff or user.is_authenticated and user.role == 'GESTIONNAIRE' %}
+                    <a href="/admin/" class="btn btn-light btn-lg modern-btn me-3">
+                        <i class="bi bi-gear me-2"></i>Administrateur Général
+                    </a>
+                    {% elif user.is_authenticated %}
+                    <a href="#" class="btn btn-light btn-lg modern-btn" disabled>
+                        <i class="bi bi-box-arrow-out-right me-2"></i>Connecté
+                    </a>
+                    {% else %}
+                    <a href="{% url 'login' %}" class="btn btn-light btn-lg modern-btn">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Se connecter
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Main Features -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-4 animate-fade-in" style="animation-delay: 0.1s;">
+            {% if user.is_authenticated and user.is_staff or user.role == 'GESTIONNAIRE' %}
+            <a href="{% url 'gestion_etudiants' %}" class="text-decoration-none">
+            {% endif %}
+                <div class="modern-card hover-card">
+                    <div class="card-body">
+                        <div class="icon-wrapper icon-students">
+                            <i class="bi bi-person-badge-fill"></i>
+                        </div>
+                        <h5 class="card-title">Étudiants</h5>
+                        <p class="card-text">
+                            {% if user.is_authenticated and user.is_staff or user.role == 'GESTIONNAIRE' %}
+                                Gérer les étudiants
+                            {% else %}
+                                Consultez vos notes et résultats
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            {% if user.is_authenticated and user.is_staff or user.role == 'GESTIONNAIRE' %}
+            </a>
+            {% endif %}
+        </div>
+        
+        <div class="col-md-4 animate-fade-in" style="animation-delay: 0.2s;">
+            {% if user.is_authenticated and user.is_staff or user.role == 'GESTIONNAIRE' %}
+            <a href="{% url 'gestion_enseignants' %}" class="text-decoration-none">
+            {% endif %}
+                <div class="modern-card hover-card">
+                    <div class="card-body">
+                        <div class="icon-wrapper icon-teachers">
+                            <i class="bi bi-person-workspace"></i>
+                        </div>
+                        <h5 class="card-title">Enseignants</h5>
+                        <p class="card-text">
+                            {% if user.is_authenticated and user.is_staff or user.role == 'GESTIONNAIRE' %}
+                                Gérer les enseignants
+                            {% else %}
+                                Encodez les notes des étudiants
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            {% if user.is_authenticated and user.is_staff or user.role == 'GESTIONNAIRE' %}
+            </a>
+            {% endif %}
+        </div>
+        
+        <div class="col-md-4 animate-fade-in" style="animation-delay: 0.3s;">
+            {% if user.is_authenticated and user.is_staff or user.role == 'GESTIONNAIRE' %}
+            <a href="{% url 'gestion_jurys' %}" class="text-decoration-none">
+            {% endif %}
+                <div class="modern-card hover-card">
+                    <div class="card-body">
+                        <div class="icon-wrapper icon-jury">
+                            <i class="bi bi-people-fill"></i>
+                        </div>
+                        <h5 class="card-title">Jury</h5>
+                        <p class="card-text">
+                            {% if user.is_authenticated and user.is_staff or user.role == 'GESTIONNAIRE' %}
+                                Gérer les jurys
+                            {% else %}
+                                Délibérez et publiez les résultats
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            {% if user.is_authenticated and user.is_staff or user.role == 'GESTIONNAIRE' %}
+            </a>
+            {% endif %}
+        </div>
+    </div>
+            
+            <!-- Section statistiques pour l'admin et gestionnaire -->
+    {% if user.is_authenticated and user.is_staff or user.role == 'GESTIONNAIRE' %}
+    <div class="feature-section">
+        <h3 class="text-center mb-4">
+            <span class="gradient-text">Tableau de Bord Administratif</span>
+        </h3>
+        <div class="row g-4 mb-5">
+            <div class="col-md-3 animate-fade-in" style="animation-delay: 0.4s;">
+                <div class="stats-card" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
+                    <div class="stats-icon">
+                        <i class="bi bi-person-badge-fill"></i>
+                    </div>
+                    <div class="stats-number">{{ total_etudiants }}</div>
+                    <div class="stats-label">Étudiants</div>
+                </div>
+            </div>
+            <div class="col-md-3 animate-fade-in" style="animation-delay: 0.5s;">
+                <div class="stats-card" style="background: linear-gradient(135deg, #10b981, #059669);">
+                    <div class="stats-icon">
+                        <i class="bi bi-person-workspace"></i>
+                    </div>
+                    <div class="stats-number">{{ total_enseignants }}</div>
+                    <div class="stats-label">Enseignants</div>
+                </div>
+            </div>
+            <div class="col-md-3 animate-fade-in" style="animation-delay: 0.6s;">
+                <div class="stats-card" style="background: linear-gradient(135deg, #06b6d4, #0891b2);">
+                    <div class="stats-icon">
+                        <i class="bi bi-book"></i>
+                    </div>
+                    <div class="stats-number">{{ total_credits_ue }}</div>
+                    <div class="stats-label">Total Crédits UE</div>
+                </div>
+            </div>
+            <div class="col-md-3 animate-fade-in" style="animation-delay: 0.7s;">
+                <div class="stats-card" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                    <div class="stats-icon">
+                        <i class="bi bi-journal-text"></i>
+                    </div>
+                    <div class="stats-number">{{ total_credits_ec }}</div>
+                    <div class="stats-label">Total Crédits EC</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row g-4 mb-5">
+            <div class="col-md-4 animate-fade-in" style="animation-delay: 0.8s;">
+                <div class="stats-card" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+                    <div class="stats-icon">
+                        <i class="bi bi-collection"></i>
+                    </div>
+                    <div class="stats-number">{{ total_ues }}</div>
+                    <div class="stats-label">Unités d'Enseignement</div>
+                </div>
+            </div>
+            <div class="col-md-4 animate-fade-in" style="animation-delay: 0.9s;">
+                <div class="stats-card" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+                    <div class="stats-icon">
+                        <i class="bi bi-journal-text"></i>
+                    </div>
+                    <div class="stats-number">{{ total_ecs }}</div>
+                    <div class="stats-label">Éléments Constitutifs</div>
+                </div>
+            </div>
+            <div class="col-md-4 animate-fade-in" style="animation-delay: 1.0s;">
+                <div class="stats-card" style="background: linear-gradient(135deg, #f97316, #ea580c);">
+                    <div class="stats-icon">
+                        <i class="bi bi-person-check"></i>
+                    </div>
+                    <div class="stats-number">{{ total_attributions }}</div>
+                    <div class="stats-label">Attributions</div>
+                </div>
+            </div>
+        </div>
+    </div>
+            
+            <!-- Section supplémentaire pour l'admin -->
+    <div class="feature-section">
+        <h3 class="text-center mb-4">
+            <span class="gradient-text">Gestion Académique</span>
+        </h3>
+        <div class="row g-4 mb-5">
+            <div class="col-md-4 animate-fade-in" style="animation-delay: 1.1s;">
+                <a href="{% url 'gestion_ue' %}" class="text-decoration-none">
+                    <div class="modern-card hover-card">
+                        <div class="card-body">
+                            <div class="icon-wrapper icon-ue">
+                                <i class="bi bi-book"></i>
+                            </div>
+                            <h5 class="card-title">Unités d'Enseignement (UE)</h5>
+                            <p class="card-text">Gérer les UE</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            
+            <div class="col-md-4 animate-fade-in" style="animation-delay: 1.2s;">
+                <a href="{% url 'gestion_ec' %}" class="text-decoration-none">
+                    <div class="modern-card hover-card">
+                        <div class="card-body">
+                            <div class="icon-wrapper icon-ec">
+                                <i class="bi bi-journal-text"></i>
+                            </div>
+                            <h5 class="card-title">Éléments Constitutifs (EC)</h5>
+                            <p class="card-text">Gérer les EC</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            
+            <div class="col-md-4 animate-fade-in" style="animation-delay: 1.3s;">
+                <a href="{% url 'gestion_cohortes' %}" class="text-decoration-none">
+                    <div class="modern-card hover-card">
+                        <div class="card-body">
+                            <div class="icon-wrapper icon-cohortes">
+                                <i class="bi bi-collection"></i>
+                            </div>
+                            <h5 class="card-title">Cohortes</h5>
+                            <p class="card-text">Gérer les cohortes</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+        
+        <div class="row g-4 mb-5">
+            <div class="col-md-4 animate-fade-in" style="animation-delay: 1.4s;">
+                <a href="{% url 'gestion_inscriptions' %}" class="text-decoration-none">
+                    <div class="modern-card hover-card">
+                        <div class="card-body">
+                            <div class="icon-wrapper icon-inscriptions">
+                                <i class="bi bi-card-checklist"></i>
+                            </div>
+                            <h5 class="card-title">Inscriptions</h5>
+                            <p class="card-text">Gérer les inscriptions</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            
+            <div class="col-md-4 animate-fade-in" style="animation-delay: 1.5s;">
+                <a href="{% url 'gestion_attributions' %}" class="text-decoration-none">
+                    <div class="modern-card hover-card">
+                        <div class="card-body">
+                            <div class="icon-wrapper icon-attributions">
+                                <i class="bi bi-person-check"></i>
+                            </div>
+                            <h5 class="card-title">Attribuer Cours</h5>
+                            <p class="card-text">Attribuer UE/EC aux enseignants</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            
+            <div class="col-md-4 animate-fade-in" style="animation-delay: 1.6s;">
+                <a href="{% url 'gestion_sections' %}" class="text-decoration-none">
+                    <div class="modern-card hover-card">
+                        <div class="card-body">
+                            <div class="icon-wrapper icon-settings">
+                                <i class="bi bi-sliders"></i>
+                            </div>
+                            <h5 class="card-title">Réglages</h5>
+                            <p class="card-text">Paramètres système</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+            
+            <!-- Accès aux espaces utilisateurs (admin only) -->
+    {% if user.is_authenticated and user.is_staff and not is_gestionnaire %}
+    <div class="feature-section">
+        <h3 class="text-center mb-4">
+            <span class="gradient-text">Visualiser les Espaces Utilisateurs</span>
+        </h3>
+        <p class="text-center text-muted mb-4">Accéder aux interfaces des différents profils pour visualiser leur espace</p>
+        <div class="row g-3">
+            <div class="col-md-4 animate-fade-in" style="animation-delay: 1.7s;">
+                <a href="{% url 'etudiant_dashboard' %}" class="btn btn-outline-primary modern-btn w-100">
+                    <i class="bi bi-person-badge me-2"></i>Espace Étudiant
+                </a>
+            </div>
+            <div class="col-md-4 animate-fade-in" style="animation-delay: 1.8s;">
+                <a href="{% url 'enseignant_dashboard' %}" class="btn btn-outline-success modern-btn w-100">
+                    <i class="bi bi-person-workspace me-2"></i>Espace Enseignant
+                </a>
+            </div>
+            <div class="col-md-4 animate-fade-in" style="animation-delay: 1.9s;">
+                <a href="{% url 'jury_dashboard' %}" class="btn btn-outline-warning modern-btn w-100">
+                    <i class="bi bi-people-fill me-2"></i>Espace Jury
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="text-center mt-5 animate-fade-in" style="animation-delay: 2.0s;">
+        <a href="/admin/" class="btn btn-success btn-lg modern-btn px-5">
+            <i class="bi bi-gear me-2"></i>
+            {% if is_gestionnaire %}GESTIONNAIRE{% else %}Interface d'Administration Générale{% endif %}
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

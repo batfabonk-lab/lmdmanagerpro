@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Évaluations des Enseignants - Gestionnaire{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h2>
+                <i class="bi bi-star-fill"></i> Évaluations des Enseignants
+            </h2>
+            <p class="text-muted">Visualisez les évaluations des enseignants par les étudiants</p>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label for="enseignant" class="form-label">Enseignant</label>
+                    <select id="enseignant" name="enseignant" class="form-select">
+                        <option value="">-- Tous les enseignants --</option>
+                        {% for enseignant in enseignants %}
+                            <option value="{{ enseignant.matricule_en }}" {% if enseignant.matricule_en == enseignant_filter %}selected{% endif %}>
+                                {{ enseignant.nom_complet }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="annee" class="form-label">Année Académique</label>
+                    <select id="annee" name="annee" class="form-select">
+                        <option value="">-- Toutes les années --</option>
+                        {% for annee in annees %}
+                            <option value="{{ annee.code_anac }}" {% if annee.code_anac == annee_filter %}selected{% endif %}>
+                                {{ annee.code_anac }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-funnel"></i> Filtrer
+                    </button>
+                    <a href="{% url 'gestionnaire_evaluations' %}" class="btn btn-light ms-2">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Statistiques -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Nombre d'évaluations</h6>
+                    <h2 class="mb-0">{{ total }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Note moyenne</h6>
+                    <h2 class="mb-0">{{ avg_note }}/5</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tableau des évaluations -->
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Étudiant</th>
+                        <th>Enseignant</th>
+                        <th>Cours</th>
+                        <th>Année</th>
+                        <th>Moyenne</th>
+                        <th>Commentaire</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for eval in page_obj %}
+                        <tr>
+                            <td>
+                                {% if eval.etudiant %}
+                                    <strong>{{ eval.etudiant.nom_complet }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ eval.etudiant.matricule_et }}</small>
+                                {% else %}
+                                    <span class="text-muted">--</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if eval.attribution.matricule_en %}
+                                    <strong>{{ eval.attribution.matricule_en.nom_complet }}</strong>
+                                {% else %}
+                                    <span class="text-muted">--</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if eval.attribution.code_cours %}
+                                    <small>{{ eval.attribution.code_cours }}</small>
+                                {% else %}
+                                    <span class="text-muted">--</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ eval.annee_academique }}</td>
+                            <td>
+                                <span class="badge {% if eval.moyenne >= 4 %}bg-success{% elif eval.moyenne >= 3 %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ eval.moyenne }}/5
+                                </span>
+                            </td>
+                            <td>
+                                <small class="text-muted" style="max-height: 50px; display: block; overflow: hidden;">
+                                    {{ eval.commentaire|truncatewords:15|default:"--" }}
+                                </small>
+                            </td>
+                            <td>{{ eval.date_creation|date:"d/m/Y" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">
+                                <i class="bi bi-inbox"></i> Aucune évaluation trouvée
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if enseignant_filter %}&enseignant={{ enseignant_filter }}{% endif %}{% if annee_filter %}&annee={{ annee_filter }}{% endif %}">Première</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if enseignant_filter %}&enseignant={{ enseignant_filter }}{% endif %}{% if annee_filter %}&annee={{ annee_filter }}{% endif %}">Précédente</a>
+                </li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% else %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if enseignant_filter %}&enseignant={{ enseignant_filter }}{% endif %}{% if annee_filter %}&annee={{ annee_filter }}{% endif %}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if enseignant_filter %}&enseignant={{ enseignant_filter }}{% endif %}{% if annee_filter %}&annee={{ annee_filter }}{% endif %}">Suivante</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if enseignant_filter %}&enseignant={{ enseignant_filter }}{% endif %}{% if annee_filter %}&annee={{ annee_filter }}{% endif %}">Dernière</a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

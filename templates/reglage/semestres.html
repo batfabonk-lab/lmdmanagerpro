@@ -1,0 +1,72 @@
+{% extends 'reglage/base_list.html' %}
+{% block title %}Gestion des Semestres{% endblock %}
+
+{% block reglage_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-calendar3 me-2"></i>Gestion des Semestres</h2>
+    <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#addModal">
+        <i class="bi bi-plus-circle me-2"></i>Ajouter
+    </button>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-secondary text-white">
+            <div class="card-body"><h6>Total</h6><h2 class="mb-0">{{ items.count }}</h2></div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><i class="bi bi-table me-2"></i>Liste des Semestres</div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead class="table-dark">
+                    <tr><th>Code</th><th>Désignation</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td><strong>{{ item.code_semestre }}</strong></td>
+                        <td>{{ item.designation_semestre }}</td>
+                        <td>
+                            <a href="{% url 'modifier_semestre' item.code_semestre %}" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
+                            <a href="{% url 'supprimer_semestre' item.code_semestre %}" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="text-center text-muted">Aucun élément</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-secondary text-white">
+                <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Ajouter un Semestre</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    {% for field in form %}
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">{{ field.label }}</label>
+                        {{ field }}
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-secondary"><i class="bi bi-save me-2"></i>Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock reglage_content %}

@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+
+{% block title %}Importer des Attributions{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <!-- Zone de progression (en haut) -->
+            <div id="progressSection" class="mb-4" style="display: none;">
+                <div class="card border-info">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0"><i class="bi bi-hourglass-split me-2"></i>Importation en cours...</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span id="progressText">Préparation...</span>
+                                <span id="progressPercent">0%</span>
+                            </div>
+                            <div class="progress" style="height: 25px;">
+                                <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-info" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div id="currentAction" class="text-muted small">
+                            <i class="bi bi-arrow-right me-1"></i>Lecture du fichier Excel...
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Résultat (en haut) -->
+            <div id="resultSection" class="mb-4" style="display: none;">
+                <div id="resultCard" class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="bi bi-check-circle me-2"></i>Résultat de l'importation</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-md-4">
+                                <div class="display-6 text-primary" id="totalCount">0</div>
+                                <div class="text-muted">Total traités</div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="display-6 text-success" id="successCount">0</div>
+                                <div class="text-muted">Succès</div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="display-6 text-danger" id="errorCount">0</div>
+                                <div class="text-muted">Erreurs</div>
+                            </div>
+                        </div>
+                        <div id="errorsList" class="mt-3" style="display: none;">
+                            <hr>
+                            <h6 class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Détails des erreurs :</h6>
+                            <ul id="errorsUl" class="small text-danger"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-file-earmark-excel me-2"></i>
+                        Importer des Attributions depuis Excel
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="importForm" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="alert alert-info">
+                            <h6><i class="bi bi-info-circle me-2"></i>Format du fichier Excel</h6>
+                            <p class="mb-2">Le fichier doit contenir les colonnes suivantes :</p>
+                            <ul class="mb-0">
+                                <li><strong>matricule_en</strong> (obligatoire) - Matricule de l'enseignant</li>
+                                <li><strong>code_cours</strong> (obligatoire) - Code UE ou EC</li>
+                                <li><strong>annee_academique</strong> (obligatoire) - Ex: 2024-2025</li>
+                                <li><strong>type_charge</strong> (optionnel) - Code du type de charge</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <div class="card h-100 border-primary">
+                                    <div class="card-header bg-primary text-white">
+                                        <h6 class="mb-0"><i class="bi bi-download me-2"></i>Étape 1 : Télécharger le modèle</h6>
+                                    </div>
+                                    <div class="card-body text-center">
+                                        <i class="bi bi-file-earmark-spreadsheet display-4 text-primary mb-3"></i>
+                                        <p class="text-muted">Téléchargez le fichier modèle avec les colonnes prédéfinies</p>
+                                        <a href="{% url 'telecharger_modele_excel' 'attributions' %}" class="btn btn-primary">
+                                            <i class="bi bi-download me-2"></i>Télécharger le modèle
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="card h-100 border-success">
+                                    <div class="card-header bg-success text-white">
+                                        <h6 class="mb-0"><i class="bi bi-upload me-2"></i>Étape 2 : Importer le fichier</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Fichier Excel (.xlsx, .xls)</label>
+                                            <input type="file" name="excel_file" id="excelFile" class="form-control" accept=".xlsx,.xls" required>
+                                        </div>
+                                        <button type="submit" class="btn btn-success w-100" id="importBtn">
+                                            <i class="bi bi-upload me-2"></i>Importer
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <a href="{% url 'liste_attributions' %}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>Retour
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('importForm');
+    const importBtn = document.getElementById('importBtn');
+    const progressSection = document.getElementById('progressSection');
+    const resultSection = document.getElementById('resultSection');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const progressPercent = document.getElementById('progressPercent');
+    const currentAction = document.getElementById('currentAction');
+    
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const fileInput = document.getElementById('excelFile');
+        if (!fileInput.files.length) {
+            alert('Veuillez sélectionner un fichier Excel.');
+            return;
+        }
+        
+        // Afficher la progression
+        progressSection.style.display = 'block';
+        resultSection.style.display = 'none';
+        importBtn.disabled = true;
+        importBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Importation...';
+        
+        // Animation de progression simulée
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            if (progress < 90) {
+                progress += Math.random() * 10;
+                if (progress > 90) progress = 90;
+                updateProgress(progress, 'Traitement des données...');
+            }
+        }, 500);
+        
+        // Étapes affichées
+        setTimeout(() => currentAction.innerHTML = '<i class="bi bi-arrow-right me-1"></i>Vérification des enseignants...', 1000);
+        setTimeout(() => currentAction.innerHTML = '<i class="bi bi-arrow-right me-1"></i>Vérification des cours...', 2000);
+        setTimeout(() => currentAction.innerHTML = '<i class="bi bi-arrow-right me-1"></i>Création des attributions...', 3000);
+        
+        // Envoyer le formulaire
+        const formData = new FormData(form);
+        
+        try {
+            const response = await fetch('{% url "import_attributions_ajax" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            });
+            
+            clearInterval(progressInterval);
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                updateProgress(100, 'Erreur !');
+                progressBar.classList.remove('bg-info');
+                progressBar.classList.add('bg-danger');
+                alert('Erreur: ' + data.error);
+            } else {
+                updateProgress(100, 'Terminé !');
+                progressBar.classList.remove('bg-info', 'progress-bar-animated');
+                progressBar.classList.add('bg-success');
+                currentAction.innerHTML = '<i class="bi bi-check-circle me-1 text-success"></i>Importation terminée avec succès !';
+                
+                // Afficher les résultats
+                setTimeout(() => {
+                    resultSection.style.display = 'block';
+                    document.getElementById('totalCount').textContent = data.total;
+                    document.getElementById('successCount').textContent = data.success_count;
+                    document.getElementById('errorCount').textContent = data.error_count;
+                    
+                    if (data.error_count > 0 && data.errors.length > 0) {
+                        document.getElementById('errorsList').style.display = 'block';
+                        const errorsUl = document.getElementById('errorsUl');
+                        errorsUl.innerHTML = '';
+                        data.errors.forEach(err => {
+                            const li = document.createElement('li');
+                            li.textContent = err;
+                            errorsUl.appendChild(li);
+                        });
+                    }
+                    
+                    // Colorer le résultat
+                    const resultCard = document.getElementById('resultCard');
+                    if (data.error_count === 0) {
+                        resultCard.classList.add('border-success');
+                        resultCard.querySelector('.card-header').classList.add('bg-success', 'text-white');
+                    } else if (data.success_count === 0) {
+                        resultCard.classList.add('border-danger');
+                        resultCard.querySelector('.card-header').classList.add('bg-danger', 'text-white');
+                    } else {
+                        resultCard.classList.add('border-warning');
+                        resultCard.querySelector('.card-header').classList.add('bg-warning');
+                    }
+                }, 500);
+            }
+        } catch (error) {
+            clearInterval(progressInterval);
+            updateProgress(100, 'Erreur !');
+            progressBar.classList.remove('bg-info');
+            progressBar.classList.add('bg-danger');
+            alert('Erreur de connexion: ' + error.message);
+        }
+        
+        importBtn.disabled = false;
+        importBtn.innerHTML = '<i class="bi bi-upload me-2"></i>Importer';
+    });
+    
+    function updateProgress(percent, text) {
+        progressBar.style.width = percent + '%';
+        progressPercent.textContent = Math.round(percent) + '%';
+        if (text) progressText.textContent = text;
+    }
+});
+</script>
+{% endblock %}

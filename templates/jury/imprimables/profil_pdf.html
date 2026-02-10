@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Profil - {{ etudiant.matricule_et }}</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 0.8cm;
+        }
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 11pt;
+            margin: 0;
+            padding: 0;
+            line-height: 1.3;
+        }
+        h1.title {
+            text-align: center;
+            font-size: 28pt;
+            font-weight: normal;
+            margin: 0 0 0.5cm 0;
+            margin-bottom: 30px;
+            font-family: 'Times New Roman', Times, serif;
+        }
+        .header-info {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .header-info td {
+            padding: 3px 0;
+            font-size: 11pt;
+        }
+        .header-info .label {
+            font-weight: bold;
+        }
+        .center-text {
+            text-align: center;
+        }
+        table.notes {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 10pt;
+        }
+        table.notes th {
+            background-color: #d0d0d0;
+            border: 1px solid #000;
+            padding: 5px 3px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 9pt;
+        }
+        table.notes td {
+            border: 1px solid #000;
+            padding: 4px 3px;
+            text-align: center;
+            vertical-align: middle;
+            font-size: 10pt;
+        }
+        table.notes td.left {
+            text-align: left;
+        }
+        table.notes td.elements {
+            text-align: left;
+            font-size: 8pt;
+        }
+        table.notes td.code-cell {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 20px;
+        }
+        .summary-table {
+            width: 100%;
+            margin-top: 15px;
+            border-collapse: collapse;
+        }
+        .summary-table td {
+            padding: 4px 5px;
+            font-size: 11pt;
+            border: 1px solid #000;
+        }
+        .summary-table .label-cell {
+            font-weight: bold;
+        }
+        .summary-table .value-cell {
+            text-align: center;
+        }
+        .moyenne-section {
+            margin-top: 10px;
+            font-size: 11pt;
+        }
+        .moyenne-section p {
+            margin: 5px 0;
+        }
+        .observations-box {
+            margin-top: 15px;
+        }
+        .observations-box .title {
+            font-weight: bold;
+            text-decoration: underline;
+            margin-bottom: 5px;
+        }
+        .observations-box .box {
+            border: 1px solid #000;
+            min-height: 80px;
+            padding: 5px;
+        }
+        .date-line {
+            text-align: right;
+            margin-top: 20px;
+            font-size: 11pt;
+        }
+        .signatures-table {
+            width: 100%;
+            margin-top: 30px;
+            font-size: 11pt;
+        }
+        .signatures-table td {
+            width: 33%;
+            text-align: center;
+            vertical-align: top;
+            padding: 5px;
+        }
+        .signatures-table .role {
+            font-weight: bold;
+            margin-bottom: 30px;
+        }
+        .signatures-table .name {
+            margin-top: 25px;
+        }
+        .bold {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    {% if entete_path %}
+        <div class="center-text" style="margin-bottom: 10px;">
+            <img src="{{ entete_path }}" style="width: 100%; max-width: 750px;" />
+        </div>
+    {% endif %}
+    <h1 class="title">Profil de l'étudiant</h1>
+
+    <table class="header-info">
+        <tr>
+            <td colspan="4" class="center-text">Semestre : S{{ semestre|default:"" }}</td>
+        </tr>
+        <tr>
+            <td style="width: 25%;"><span class="label">Matricule :</span> {{ etudiant.matricule_et }}</td>
+            <td style="width: 75%;" colspan="3" class="center-text"><span class="label">Année académique :</span> {{ annee }}</td>
+        </tr>
+        <tr>
+            <td colspan="2"><span class="label">Noms :</span> {{ etudiant.nom_complet }}</td>
+            <td colspan="2"><span class="label">Classe :</span> {{ classe.designation_classe|default:classe.code_classe }}</td>
+        </tr>
+    </table>
+
+    <table class="notes">
+        <colgroup>
+            <col width="20">
+            <col width="110">
+            <col width="170">
+            <col width="20">
+            <col width="20">
+            <col width="20">
+            <col width="20">
+            <col width="20">
+            <col width="20">
+            <col width="25">
+            <col width="40">
+        </colgroup>
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Intitulé de l'UE</th>
+                <th>Elements</th>
+                <th>Catégorie</th>
+                <th>Crédits</th>
+                <th>CC</th>
+                <th>Exam.</th>
+                <th>Notes</th>
+                <th>N. Pd.</th>
+                <th>Ratt</th>
+                <th>Statut</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for l in lignes %}
+            <tr>
+                <td class="code-cell">{{ l.code }}</td>
+                <td class="left">{{ l.intitule }}</td>
+                <td class="elements">{% for e in l.elements %}{{ e }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+                <td>{{ l.categorie|default:"-" }}</td>
+                <td>{{ l.credit|default:"-" }}</td>
+                <td>{% if l.cc is not None %}{{ l.cc|floatformat:1 }}{% else %}-{% endif %}</td>
+                <td>{% if l.exa is not None %}{{ l.exa|floatformat:1 }}{% else %}-{% endif %}</td>
+                <td>{% if l.note is not None %}{{ l.note|floatformat:1 }}{% else %}-{% endif %}</td>
+                <td>{% if l.note_ponderee is not None %}{{ l.note_ponderee|floatformat:1 }}{% else %}-{% endif %}</td>
+                <td>{% if l.rattrapage is not None %}{{ l.rattrapage|floatformat:1 }}{% else %}-{% endif %}</td>
+                <td style="font-size: 8pt;">{{ l.statut|default:"-" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="11">Aucune donnée disponible</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <table class="summary-table">
+        <tr>
+            <td class="label-cell" style="width: 25%;">Nombre total de crédits</td>
+            <td class="value-cell" style="width: 10%;">{{ credits_total|default:0 }}</td>
+            <td class="label-cell" style="width: 25%;">Nombre de crédits capitalisés</td>
+            <td class="value-cell" style="width: 10%;">{{ credits_valides|default:0 }}</td>
+            <td class="label-cell" style="width: 15%;">Moyenne</td>
+            <td class="value-cell" style="width: 15%;">{% if moyenne is not None %}{{ moyenne|floatformat:2 }}{% else %}-{% endif %}</td>
+        </tr>
+    </table>
+
+    <div class="moyenne-section">
+        <p><span class="bold">Moyenne catégorie A :</span> {% if moyenne_cat_a is not None %}{{ moyenne_cat_a|floatformat:1 }}{% else %}-{% endif %}</p>
+        <p><span class="bold">Moyenne catégorie B :</span> {% if moyenne_cat_b is not None %}{{ moyenne_cat_b|floatformat:1 }}{% else %}-{% endif %}</p>
+    </div>
+
+    <div class="observations-box">
+        <p class="title">Observations du jury</p>
+        <div class="box">{{ observations|default:"" }}</div>
+    </div>
+
+    <p class="date-line">Fait à ......................................., le {{ date|date:"d/m/Y" }}</p>
+
+    <table class="signatures-table">
+        <tr>
+            <td>
+                <div class="role">Membre du jury</div>
+                <div class="name">{{ membre_jury|default:"" }}</div>
+            </td>
+            <td>
+                <div class="role">Président du jury</div>
+                <div class="name">{{ president_jury|default:"" }}</div>
+            </td>
+            <td>
+                <div class="role">Secrétaire du jury</div>
+                <div class="name">{{ secretaire_jury|default:"" }}</div>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

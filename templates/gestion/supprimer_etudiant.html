@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}Supprimer Étudiant{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Confirmer la Suppression
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Attention !</strong> Cette action est irréversible.
+                    </div>
+                    
+                    <h6 class="mb-3">Voulez-vous vraiment supprimer cet étudiant ?</h6>
+                    
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4 text-center">
+                                    {% if etudiant.photo %}
+                                    <img src="{{ etudiant.photo.url }}" alt="Photo" class="img-thumbnail" style="max-width: 100px;">
+                                    {% else %}
+                                    <i class="bi bi-person-circle" style="font-size: 80px;"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-8">
+                                    <p><strong>Matricule :</strong> {{ etudiant.matricule_et }}</p>
+                                    <p><strong>Nom :</strong> {{ etudiant.nom_complet }}</p>
+                                    <p><strong>Sexe :</strong> {{ etudiant.get_sexe_display }}</p>
+                                    <p><strong>Téléphone :</strong> {{ etudiant.telephone }}</p>
+                                    <p><strong>Nationalité :</strong> {{ etudiant.nationalite }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'gestion_etudiants' %}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>
+                                Annuler
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-trash me-2"></i>
+                                Confirmer la suppression
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

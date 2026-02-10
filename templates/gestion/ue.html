@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestion des UE{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-end mb-4">
+    <div>
+        <form method="post" style="display: inline;" class="me-2">
+            {% csrf_token %}
+            <button type="submit" name="associer_classes" class="btn btn-warning" onclick="return confirm('Voulez-vous vraiment associer automatiquement les UE aux classes disponibles? Cette action associera les UE aux classes en se basant sur leur semestre.')">
+                <i class="bi bi-link-45deg me-2"></i>Associer Classes
+            </button>
+        </form>
+        <a href="{% url 'import_ue' %}" class="btn btn-success me-2">
+            <i class="bi bi-file-earmark-excel me-2"></i>Importer Excel
+        </a>
+        <button type="button" class="btn btn-info me-2" data-bs-toggle="modal" data-bs-target="#addModal">
+            <i class="bi bi-plus-circle me-2"></i>Ajouter
+        </button>
+        {% if user.role != 'GESTIONNAIRE' %}
+        <a href="{% url 'supprimer_tout_ue' %}" class="btn btn-danger">
+            <i class="bi bi-trash me-2"></i>Supprimer tout
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Statistiques -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h6 class="card-title">Total UE</h6>
+                <h2 class="mb-0">{{ ues.count }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h6 class="card-title">Total Crédits</h6>
+                <h2 class="mb-0">{{ total_credits }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Barre de recherche -->
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" class="form-control" placeholder="Rechercher par code ou intitulé..." value="{{ search_query|default:'' }}">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <select name="classe" class="form-select">
+                    <option value="">Toutes les classes</option>
+                    {% for classe in classes_list %}
+                    <option value="{{ classe.code_classe }}" {% if classe_filter == classe.code_classe %}selected{% endif %}>
+                        {{ classe.code_classe }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-filter me-1"></i>Filtrer
+                </button>
+            </div>
+            {% if search_query or classe_filter %}
+            <div class="col-md-2">
+                <a href="{% url 'gestion_ue' %}" class="btn btn-outline-secondary w-100">
+                    <i class="bi bi-x me-1"></i>Réinitialiser
+                </a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Grille des UE -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-table me-2"></i>Liste des UE</span>
+        <span class="badge bg-secondary">{{ ues.count }} résultat(s)</span>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Code UE</th>
+                        <th>Intitulé</th>
+                        <th>Crédits</th>
+                        <th>Semestre</th>
+                        <th>Seuil</th>
+                        <th>Catégorie</th>
+                        <th>Classe</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ue in ues %}
+                    <tr>
+                        <td><strong>{{ ue.code_ue }}</strong></td>
+                        <td>{{ ue.intitule_ue }}</td>
+                        <td><span class="badge bg-primary">{{ ue.credit }} crédits</span></td>
+                        <td>Semestre {{ ue.semestre }}</td>
+                        <td><span class="badge bg-warning">{{ ue.seuil }}</span></td>
+                        <td>
+                            <span class="badge bg-success">{{ ue.get_categorie_display }}</span>
+                        </td>
+                        <td>
+                            {% if ue.classe %}
+                            <span class="badge bg-info">{{ ue.classe.code_classe }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'modifier_ue' ue.code_ue %}" class="btn btn-sm btn-warning" title="Modifier">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'supprimer_ue' ue.code_ue %}" class="btn btn-sm btn-danger" title="Supprimer">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">Aucune UE trouvée</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ajout -->
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-plus-circle me-2"></i>
+                    Ajouter une UE
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Code UE *</label>
+                            {{ form.code_ue }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Intitulé *</label>
+                            {{ form.intitule_ue }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold">Crédits *</label>
+                            {{ form.credit }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold">Semestre *</label>
+                            {{ form.semestre }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label fw-bold">Seuil *</label>
+                            {{ form.seuil }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Catégorie</label>
+                            {{ form.categorie }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Classe</label>
+                            {{ form.classe }}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-info">
+                        <i class="bi bi-save me-2"></i>
+                        Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

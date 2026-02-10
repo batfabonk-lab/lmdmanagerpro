@@ -1,0 +1,278 @@
+{% extends 'base.html' %}
+
+{% block title %}Liste des Attributions{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Sidebar Filtres -->
+        <div class="col-md-3">
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="bi bi-funnel me-2"></i>Filtres</h6>
+                </div>
+                <div class="card-body">
+                    <form method="get" id="filterForm">
+                        <!-- Sélectionner un enseignant -->
+                        <div class="mb-3">
+                            <select name="enseignant" class="form-select" onchange="document.getElementById('filterForm').submit()">
+                                <option value="">-- Tous les enseignants --</option>
+                                {% for enseignant in enseignants %}
+                                <option value="{{ enseignant.matricule_en }}" {% if enseignant_filter == enseignant.matricule_en %}selected{% endif %}>
+                                    {{ enseignant.nom_complet }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <!-- Grade enseignant sélectionné -->
+                        <div class="mb-3">
+                            <div class="form-control bg-light text-muted text-center">
+                                {% if enseignant_selectionne and enseignant_selectionne.grade %}{{ enseignant_selectionne.grade.designation_grade }}{% else %}-- Grade --{% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Année académique -->
+                        <div class="mb-3">
+                            <select name="annee" class="form-select" onchange="document.getElementById('filterForm').submit()">
+                                <option value="">-- Toutes les années --</option>
+                                {% for annee in annees %}
+                                <option value="{{ annee.code_anac }}" {% if annee_filter == annee.code_anac %}selected{% endif %}>
+                                    {{ annee.designation_anac }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </form>
+                    
+                    <hr>
+                    
+                    <a href="{% url 'gestion_attributions' %}" class="btn btn-success w-100">
+                        <i class="bi bi-plus-circle me-2"></i>Nouvelle Attribution
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Contenu principal -->
+        <div class="col-md-9">
+            <!-- Statistiques -->
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <div class="card text-white bg-primary">
+                        <div class="card-body text-center py-2">
+                            <small>Total Attributions</small>
+                            <h4 class="mb-0">{{ total_attributions }}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-white" style="background-color: #28a745;">
+                        <div class="card-body text-center py-2">
+                            <small>Total Crédits</small>
+                            <h4 class="mb-0">{{ total_credits }}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tableau des attributions -->
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Cours Attribués</h5>
+                    <div class="d-flex align-items-center gap-2">
+                        <select name="classe" class="form-select form-select-sm" style="width: auto;" onchange="window.location.href='?enseignant={{ enseignant_filter }}&annee={{ annee_filter }}&classe=' + this.value">
+                            <option value="">-- Classe --</option>
+                            {% for classe in classes %}
+                            <option value="{{ classe.code_classe }}" {% if classe_filter == classe.code_classe %}selected{% endif %}>{{ classe.code_classe }}</option>
+                            {% endfor %}
+                        </select>
+                        <select name="annee_header" class="form-select form-select-sm" style="width: auto;" onchange="window.location.href='?enseignant={{ enseignant_filter }}&annee=' + this.value + '&classe={{ classe_filter }}'">
+                            <option value="">-- Année --</option>
+                            {% for annee in annees %}
+                            <option value="{{ annee.code_anac }}" {% if annee_filter == annee.code_anac %}selected{% endif %}>{{ annee.code_anac }}</option>
+                            {% endfor %}
+                        </select>
+                        <a href="{% url 'import_attributions' %}" class="btn btn-success btn-sm">
+                            <i class="bi bi-file-earmark-excel me-1"></i>Importer Excel
+                        </a>
+                        {% if user.role != 'GESTIONNAIRE' %}
+                        <a href="{% url 'supprimer_tout_attributions' %}" class="btn btn-danger btn-sm" onclick="return confirm('Êtes-vous sûr de vouloir supprimer TOUTES les attributions ?');">
+                            <i class="bi bi-trash me-1"></i>Supprimer tout
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if attributions %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Enseignant</th>
+                                    <th>Intitulé Cours</th>
+                                    <th>Crédit</th>
+                                    <th>Semestre</th>
+                                    <th>Type</th>
+                                    <th>Type Charge</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for attr in attributions %}
+                                <tr>
+                                    <td>{{ attr.matricule_en.nom_complet }}</td>
+                                    <td>
+                                        <strong>{{ attr.get_intitule }}</strong>
+                                        <br><small class="text-muted">{{ attr.code_cours }}</small>
+                                    </td>
+                                    <td>
+                                        {% for ue in ues %}
+                                            {% if ue.code_ue == attr.code_cours %}
+                                                <span class="badge bg-primary">{{ ue.credit }}</span>
+                                            {% endif %}
+                                        {% endfor %}
+                                        {% for ec in ecs %}
+                                            {% if ec.code_ec == attr.code_cours %}
+                                                <span class="badge bg-success">{{ ec.credit }}</span>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        {% for ue in ues %}
+                                            {% if ue.code_ue == attr.code_cours %}
+                                                <span class="badge bg-info">S{{ ue.semestre }}</span>
+                                            {% endif %}
+                                        {% endfor %}
+                                        {% for ec in ecs %}
+                                            {% if ec.code_ec == attr.code_cours %}
+                                                {% if ec.code_ue %}
+                                                    <span class="badge bg-info">S{{ ec.code_ue.semestre }}</span>
+                                                {% endif %}
+                                            {% endif %}
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        {% with type=attr.get_type_cours %}
+                                        {% if type == 'UE' %}
+                                        <span class="badge bg-primary">UE</span>
+                                        {% elif type == 'EC' %}
+                                        <span class="badge bg-success">EC</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">--</span>
+                                        {% endif %}
+                                        {% endwith %}
+                                    </td>
+                                    <td>{{ attr.type_charge.designation_typecharge|default:"-" }}</td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-warning"
+                                                    title="Modifier cette attribution"
+                                                    onclick="editAttribution('{{ attr.code_attribution }}', '{{ attr.matricule_en.matricule_en }}', '{{ attr.code_cours }}', '{{ attr.type_charge.code_type|default:'' }}')">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <a href="{% url 'supprimer_attribution' attr.code_attribution %}" 
+                                               class="btn btn-sm btn-outline-danger"
+                                               title="Supprimer cette attribution"
+                                               onclick="if(confirm('Supprimer cette attribution ?')) { return true; } else { return false; }">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning m-3">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Aucune attribution trouvée.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Modifier Attribution -->
+<div class="modal fade" id="modalEditAttribution" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Modifier Attribution</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" id="formEditAttribution">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Code Attribution</label>
+                        <input type="text" class="form-control" id="editCodeAttribution" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Enseignant</label>
+                        <select name="matricule_en" id="editEnseignant" class="form-select" required>
+                            <option value="">-- Sélectionner enseignant --</option>
+                            {% for enseignant in enseignants %}
+                            <option value="{{ enseignant.matricule_en }}">{{ enseignant.nom_complet }} ({{ enseignant.matricule_en }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Code Cours</label>
+                        <input type="text" class="form-control" id="editCodeCours" readonly>
+                        <small class="text-muted">Le code cours ne peut pas être modifié</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Type Charge</label>
+                        <select name="type_charge" id="editTypeCharge" class="form-select">
+                            <option value="">-- Type de charge --</option>
+                            {% for type in types_charge %}
+                            <option value="{{ type.code_type }}">{{ type.designation_typecharge }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Année Académique</label>
+                        <select name="annee_academique" id="editAnneeAcademique" class="form-select">
+                            {% for annee in annees %}
+                            <option value="{{ annee.code_anac }}">{{ annee.designation_anac }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-save me-1"></i>Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function editAttribution(codeAttribution, matriculeEn, codeCours, typeCharge) {
+    // Remplir le modal avec les données actuelles
+    document.getElementById('editCodeAttribution').value = codeAttribution;
+    document.getElementById('editEnseignant').value = matriculeEn;
+    document.getElementById('editCodeCours').value = codeCours;
+    document.getElementById('editTypeCharge').value = typeCharge || '';
+    
+    // Définir l'action du formulaire
+    document.getElementById('formEditAttribution').action = '/gestion/attributions/modifier/' + codeAttribution + '/';
+    
+    // Afficher le modal
+    const modal = new bootstrap.Modal(document.getElementById('modalEditAttribution'));
+    modal.show();
+}
+</script>
+{% endblock %}

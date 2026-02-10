@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+
+{% block title %}Détails Enseignant{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Colonne Profil -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-person-workspace me-2"></i>
+                        Profil Enseignant
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    {% if enseignant.photo %}
+                    <img src="{{ enseignant.photo.url }}" alt="Photo" class="img-thumbnail mb-3" style="max-width: 200px;">
+                    {% else %}
+                    <i class="bi bi-person-circle text-muted mb-3" style="font-size: 150px;"></i>
+                    {% endif %}
+                    
+                    <h4 class="mt-3">{{ enseignant.nom_complet }}</h4>
+                    <p class="text-muted mb-2">{{ enseignant.matricule_en }}</p>
+                    <span class="badge bg-success fs-6">{{ enseignant.grade }}</span>
+                </div>
+            </div>
+            
+            <!-- Informations Professionnelles -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <i class="bi bi-briefcase me-2"></i>
+                    Informations Professionnelles
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong><i class="bi bi-award me-2"></i>Grade :</strong>
+                        <br>
+                        <span class="badge bg-info mt-1">{{ enseignant.grade }}</span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong><i class="bi bi-person-badge me-2"></i>Fonction :</strong>
+                        <br>
+                        <span class="text-muted">{{ enseignant.fonction }}</span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong><i class="bi bi-building me-2"></i>Département :</strong>
+                        <br>
+                        <span class="badge bg-primary mt-1">{{ enseignant.code_dpt }}</span>
+                    </div>
+                    
+                    <div class="mb-0">
+                        <strong><i class="bi bi-telephone me-2"></i>Téléphone :</strong>
+                        <br>
+                        <span class="text-muted">{{ enseignant.telephone }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Compte Utilisateur -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <i class="bi bi-person-circle me-2"></i>
+                    Compte Utilisateur
+                </div>
+                <div class="card-body">
+                    {% if enseignant.id_lgn %}
+                    <p class="mb-2">
+                        <strong>Username :</strong> {{ enseignant.id_lgn.username }}
+                    </p>
+                    <p class="mb-2">
+                        <strong>Email :</strong> {{ enseignant.id_lgn.email|default:"Non renseigné" }}
+                    </p>
+                    <p class="mb-0">
+                        <strong>Rôle :</strong> 
+                        <span class="badge bg-success">{{ enseignant.id_lgn.get_role_display }}</span>
+                    </p>
+                    {% else %}
+                    <p class="text-muted">Aucun compte utilisateur associé</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Colonne Détails -->
+        <div class="col-md-8">
+            <!-- Statistiques -->
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <i class="bi bi-book me-2"></i>
+                                UE Enseignées
+                            </h6>
+                            <h2 class="mb-0">-</h2>
+                            <small>À venir</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <i class="bi bi-people me-2"></i>
+                                Étudiants
+                            </h6>
+                            <h2 class="mb-0">-</h2>
+                            <small>À venir</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <i class="bi bi-file-earmark-text me-2"></i>
+                                Évaluations
+                            </h6>
+                            <h2 class="mb-0">-</h2>
+                            <small>À venir</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Informations Détaillées -->
+            <div class="card mb-3">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Informations Complètes
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="border-start border-success border-4 ps-3">
+                                <small class="text-muted">Matricule</small>
+                                <h6 class="mb-0">{{ enseignant.matricule_en }}</h6>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="border-start border-success border-4 ps-3">
+                                <small class="text-muted">Nom Complet</small>
+                                <h6 class="mb-0">{{ enseignant.nom_complet }}</h6>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="border-start border-success border-4 ps-3">
+                                <small class="text-muted">Grade</small>
+                                <h6 class="mb-0">{{ enseignant.grade }}</h6>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="border-start border-success border-4 ps-3">
+                                <small class="text-muted">Fonction</small>
+                                <h6 class="mb-0">{{ enseignant.fonction }}</h6>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="border-start border-success border-4 ps-3">
+                                <small class="text-muted">Département</small>
+                                <h6 class="mb-0">{{ enseignant.code_dpt }}</h6>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="border-start border-success border-4 ps-3">
+                                <small class="text-muted">Téléphone</small>
+                                <h6 class="mb-0">{{ enseignant.telephone }}</h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- UE et EC Enseignés (Placeholder) -->
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-book me-2"></i>
+                        Unités d'Enseignement
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Fonctionnalité à venir</strong>
+                        <p class="mb-0 mt-2">La liste des UE et EC enseignés par cet enseignant sera affichée ici.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Évaluations Récentes (Placeholder) -->
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="bi bi-file-earmark-text me-2"></i>
+                        Évaluations Récentes
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Fonctionnalité à venir</strong>
+                        <p class="mb-0 mt-2">Les évaluations encodées par cet enseignant seront affichées ici.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Boutons d'Action -->
+            <div class="mt-4">
+                <a href="{% url 'gestion_enseignants' %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>
+                    Retour à la liste
+                </a>
+                <a href="{% url 'modifier_enseignant' enseignant.matricule_en %}" class="btn btn-warning">
+                    <i class="bi bi-pencil me-2"></i>
+                    Modifier
+                </a>
+                <a href="{% url 'supprimer_enseignant' enseignant.matricule_en %}" class="btn btn-danger">
+                    <i class="bi bi-trash me-2"></i>
+                    Supprimer
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

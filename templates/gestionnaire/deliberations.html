@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}Délibérations - Gestionnaire{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h2>
+                <i class="bi bi-clipboard-check"></i> Résultats de Délibérations
+            </h2>
+            <p class="text-muted">Consultez les résultats publiés par les jurys</p>
+        </div>
+    </div>
+
+    <!-- Sélection du Jury -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Sélectionnez un Jury</h5>
+        </div>
+        <div class="card-body">
+            {% if jurys %}
+                <div class="row g-2">
+                    {% for jury in jurys %}
+                        <div class="col-auto">
+                            <a href="?jury={{ jury.code_jury }}" class="btn {% if jury.code_jury == jury_selected_id %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                                <i class="bi bi-people"></i>
+                                <strong>{{ jury.code_jury }}</strong>
+                                <br>
+                                <small>{{ jury.code_classe.code_classe }}</small>
+                            </a>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> Aucun jury disponible
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Affichage des résultats du jury sélectionné -->
+    {% if jury_selected %}
+        <!-- Filtres additionnels -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <input type="hidden" name="jury" value="{{ jury_selected_id }}">
+                    <div class="col-md-4">
+                        <label for="classe" class="form-label">Classe</label>
+                        <select id="classe" name="classe" class="form-select">
+                            <option value="">-- Toutes les classes --</option>
+                            {% for classe in classes %}
+                                <option value="{{ classe.code_classe }}" {% if classe.code_classe == classe_filter %}selected{% endif %}>
+                                    {{ classe.code_classe }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="annee" class="form-label">Année Académique</label>
+                        <select id="annee" name="annee" class="form-select">
+                            <option value="">-- Toutes les années --</option>
+                            {% for annee in annees %}
+                                <option value="{{ annee.code_anac }}" {% if annee.code_anac == annee_filter %}selected{% endif %}>
+                                    {{ annee.code_anac }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-funnel"></i> Filtrer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Informations du jury sélectionné -->
+        <div class="alert alert-info">
+            <div class="row">
+                <div class="col-md-6">
+                    <strong>Jury:</strong> {{ jury_selected.code_jury }}<br>
+                    <strong>Classe:</strong> {{ jury_selected.code_classe.code_classe }}<br>
+                    <strong>Année:</strong> {{ jury_selected.annee_academique }}
+                </div>
+                <div class="col-md-6">
+                    <strong>Président:</strong> {{ jury_selected.get_president_display }}<br>
+                    <strong>Secrétaire:</strong> {{ jury_selected.get_secretaire_display }}<br>
+                    <strong>Membre:</strong> {{ jury_selected.get_membre_display }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Résultats trouvés -->
+        <div class="alert alert-info">
+            <strong>Total:</strong> {{ total }} résultat(s) trouvé(s)
+        </div>
+
+        <!-- Tableau des résultats -->
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Étudiant</th>
+                            <th>UE/EC</th>
+                            <th>CC</th>
+                            <th>Examen</th>
+                            <th>Rattrapage</th>
+                            <th>Rachat</th>
+                            <th>Note Finale</th>
+                            <th>Statut</th>
+                            <th>Créée</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for delib in page_obj %}
+                            <tr>
+                                <td>
+                                    {% if delib.matricule_etudiant %}
+                                        {{ delib.matricule_etudiant.nom_complet }}
+                                    {% else %}
+                                        <span class="text-muted">--</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if delib.code_ue %}
+                                        <strong>{{ delib.code_ue.code_ue }}</strong> (UE)
+                                    {% elif delib.code_ec %}
+                                        <strong>{{ delib.code_ec.code_ec }}</strong> (EC)
+                                    {% else %}
+                                        <span class="text-muted">--</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if delib.cc %}
+                                        {{ delib.cc }}
+                                    {% else %}
+                                        <span class="text-muted">--</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if delib.examen %}
+                                        {{ delib.examen }}
+                                    {% else %}
+                                        <span class="text-muted">--</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if delib.rattrapage %}
+                                        {{ delib.rattrapage }}
+                                    {% else %}
+                                        <span class="text-muted">--</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if delib.rachat %}
+                                        {{ delib.rachat }}
+                                    {% else %}
+                                        <span class="text-muted">--</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if delib.calculer_note_finale %}
+                                        <span class="badge {% if delib.calculer_note_finale >= 10 %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ delib.calculer_note_finale }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">--</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if delib.statut %}
+                                        <span class="badge {% if delib.statut == 'VALIDE' %}bg-success{% elif delib.statut == 'EN_COURS' %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ delib.statut }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">--</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ delib.date_creation|date:"d/m/Y H:i" }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center text-muted">
+                                    <i class="bi bi-inbox"></i> Aucun résultat trouvé pour ce jury
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1&jury={{ jury_selected_id }}{% if classe_filter %}&classe={{ classe_filter }}{% endif %}{% if annee_filter %}&annee={{ annee_filter }}{% endif %}">Première</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&jury={{ jury_selected_id }}{% if classe_filter %}&classe={{ classe_filter }}{% endif %}{% if annee_filter %}&annee={{ annee_filter }}{% endif %}">Précédente</a>
+                    </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% else %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}&jury={{ jury_selected_id }}{% if classe_filter %}&classe={{ classe_filter }}{% endif %}{% if annee_filter %}&annee={{ annee_filter }}{% endif %}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&jury={{ jury_selected_id }}{% if classe_filter %}&classe={{ classe_filter }}{% endif %}{% if annee_filter %}&annee={{ annee_filter }}{% endif %}">Suivante</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&jury={{ jury_selected_id }}{% if classe_filter %}&classe={{ classe_filter }}{% endif %}{% if annee_filter %}&annee={{ annee_filter }}{% endif %}">Dernière</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+    {% else %}
+        <!-- Message si aucun jury sélectionné -->
+        <div class="alert alert-secondary mt-4">
+            <i class="bi bi-info-circle"></i> <strong>Sélectionnez un jury</strong> pour voir les résultats de délibération publiés
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

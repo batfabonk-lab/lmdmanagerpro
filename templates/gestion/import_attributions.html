@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block title %}Importer des Attributions{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-file-earmark-excel me-2"></i>
+                        Importer des Attributions depuis Excel
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="alert alert-info">
+                            <h6><i class="bi bi-info-circle me-2"></i>Format du fichier Excel</h6>
+                            <p class="mb-2">Le fichier doit contenir les colonnes suivantes :</p>
+                            <ul class="mb-3">
+                                <li><strong>matricule_en</strong> (obligatoire) - Matricule de l'enseignant</li>
+                                <li><strong>code_cours</strong> (obligatoire) - Code UE ou EC</li>
+                                <li><strong>annee_academique</strong> (obligatoire) - Ex: 2024-2025</li>
+                                <li><strong>type_charge</strong> (optionnel) - Code du type de charge</li>
+                            </ul>
+                            <div class="d-flex justify-content-center">
+                                <a href="{% url 'telecharger_modele_excel' 'attributions' %}" class="btn btn-outline-success btn-sm">
+                                    <i class="bi bi-download me-2"></i>Télécharger le modèle Excel
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Fichier Excel (.xlsx, .xls)</label>
+                            <input type="file" name="excel_file" class="form-control" accept=".xlsx,.xls" required>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'liste_attributions' %}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>Retour
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-upload me-2"></i>Importer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block title %}Publier Résultats{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">
+    <i class="bi bi-megaphone me-2"></i>
+    Publication des Résultats
+</h2>
+
+<div class="card">
+    <div class="card-header bg-success text-white">
+        <i class="bi bi-check-circle me-2"></i>
+        Confirmer la Publication
+    </div>
+    <div class="card-body">
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <strong>Attention !</strong> Une fois publiés, les résultats seront visibles par tous les étudiants.
+        </div>
+        
+        <div class="mb-4">
+            <h5>Informations du Jury</h5>
+            <ul class="list-unstyled">
+                <li><strong>Code Jury:</strong> {{ jury.code_jury }}</li>
+                <li><strong>Président:</strong> {{ jury.president }}</li>
+                <li><strong>Secrétaire:</strong> {{ jury.secretaire }}</li>
+                <li><strong>Membre:</strong> {{ jury.membre }}</li>
+            </ul>
+        </div>
+        
+        {% if jury.decision %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong>Dernière publication:</strong> {{ jury.decision }}
+        </div>
+        {% endif %}
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="bi bi-megaphone me-2"></i>
+                    Publier les Résultats
+                </button>
+                <a href="{% url 'jury_dashboard' %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>
+                    Retour
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

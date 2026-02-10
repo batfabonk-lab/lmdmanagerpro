@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Import Attributions - Gestionnaire{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h2>
+                <i class="bi bi-upload"></i> Importer des Attributions
+            </h2>
+            <p class="text-muted">Importez un fichier Excel pour créer/mettre à jour les attributions de cours</p>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-8 offset-md-2">
+            <!-- Instructions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-info-circle"></i> Format du fichier Excel</h5>
+                </div>
+                <div class="card-body">
+                    <p>Le fichier Excel doit contenir les colonnes suivantes (sans en-têtes ou avec les en-têtes):</p>
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Colonne</th>
+                                <th>Description</th>
+                                <th>Exemple</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Matricule Enseignant</strong></td>
+                                <td>Matricule de l'enseignant</td>
+                                <td>ENS001</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Code Cours</strong></td>
+                                <td>Code UE ou EC</td>
+                                <td>INF101 ou PROG</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Type Charge</strong></td>
+                                <td>Type de charge (optionnel)</td>
+                                <td>CM, TD, TP</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Année Académique</strong></td>
+                                <td>Année académique</td>
+                                <td>2024-2025</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p class="mt-3"><a href="{% url 'telecharger_template_attributions' %}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-download"></i> Télécharger un template
+                    </a></p>
+                </div>
+            </div>
+
+            <!-- Formulaire d'import -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Télécharger le fichier</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" id="import-form">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="file" class="form-label">Fichier Excel <span class="text-danger">*</span></label>
+                            <input type="file" class="form-control" id="file" name="file" accept=".xlsx,.xls" required>
+                            <small class="text-muted">Format: XLSX ou XLS</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="updates_existing" name="updates_existing" value="1" checked>
+                                <label class="form-check-label" for="updates_existing">
+                                    Mettre à jour les attributions existantes
+                                </label>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-cloud-upload"></i> Importer
+                        </button>
+                        <a href="{% url 'gestionnaire_import_attributions' %}" class="btn btn-secondary">
+                            <i class="bi bi-x"></i> Annuler
+                        </a>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Messages de statut -->
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} mt-4 alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <!-- Résultats d'import -->
+            {% if import_result %}
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-check-circle"></i> Résumé de l'import</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>Attributions créées:</strong> <span class="badge bg-success">{{ import_result.created_count }}</span></p>
+                                <p><strong>Attributions mises à jour:</strong> <span class="badge bg-info">{{ import_result.updated_count }}</span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>Erreurs:</strong> <span class="badge {% if import_result.error_count > 0 %}bg-danger{% else %}bg-success{% endif %}">{{ import_result.error_count }}</span></p>
+                                <p><strong>Total traité:</strong> <span class="badge bg-primary">{{ import_result.total_count }}</span></p>
+                            </div>
+                        </div>
+
+                        {% if import_result.errors %}
+                            <div class="mt-3">
+                                <h6>Erreurs détaillées:</h6>
+                                <div class="alert alert-danger">
+                                    <ul class="mb-0">
+                                        {% for error in import_result.errors %}
+                                            <li>{{ error }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('import-form').addEventListener('submit', function(e) {
+    const fileInput = document.getElementById('file');
+    if (!fileInput.files.length) {
+        e.preventDefault();
+        alert('Veuillez sélectionner un fichier');
+    }
+});
+</script>
+{% endblock %}

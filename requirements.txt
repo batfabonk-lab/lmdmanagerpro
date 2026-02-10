@@ -1,0 +1,7 @@
+Django>=5.0
+Pillow>=10.0.0
+python-decouple==3.8
+openpyxl>=3.1.0
+pandas>=2.0.0
+xhtml2pdf>=0.2.11
+PyMySQL>=1.1.0

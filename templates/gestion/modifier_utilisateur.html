@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block title %}Modifier Utilisateur{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-pencil-square me-2"></i>
+                        Modifier l'utilisateur: {{ utilisateur.username }}
+                    </h5>
+                </div>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="card-body">
+                        <!-- Username et Email -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Nom d'utilisateur *</label>
+                                {{ form.username }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Email</label>
+                                {{ form.email }}
+                            </div>
+                        </div>
+                        
+                        <!-- Prénom et Nom -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Prénom</label>
+                                {{ form.first_name }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Nom</label>
+                                {{ form.last_name }}
+                            </div>
+                        </div>
+                        
+                        <!-- Rôle -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Rôle *</label>
+                            {{ form.role }}
+                        </div>
+                        
+                        <!-- Options -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label" for="id_is_active">Compte actif</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    {{ form.is_staff }}
+                                    <label class="form-check-label" for="id_is_staff">Accès administration</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            Pour changer le mot de passe, utilisez le bouton "Réinitialiser MDP" dans la liste des utilisateurs.
+                        </div>
+                    </div>
+                    <div class="card-footer text-center">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-save me-2"></i>Enregistrer
+                        </button>
+                        <a href="{% url 'gestion_utilisateurs' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Retour
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

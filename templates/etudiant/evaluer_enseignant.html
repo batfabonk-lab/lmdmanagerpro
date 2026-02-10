@@ -1,0 +1,524 @@
+{% extends 'base.html' %}
+
+{% block title %}Évaluer enseignant{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">
+        <i class="bi bi-star-half me-2"></i>
+        Évaluer enseignant
+    </h2>
+    <div class="text-muted">
+        {% if annee_code %}<span class="badge bg-primary">{{ annee_code }}</span>{% endif %}
+        {% if semestre %}<span class="badge bg-secondary">Semestre {{ semestre }}</span>{% endif %}
+    </div>
+</div>
+
+<form method="get" class="mb-4">
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label for="annee-select" class="form-label fw-semibold">Année Académique</label>
+            <select id="annee-select" name="annee" class="form-select" onchange="this.form.submit()">
+                {% for an in annees %}
+                <option value="{{ an }}" {% if annee_code == an %}selected{% endif %}>{{ an }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label fw-semibold">Semestre</label>
+            <select name="semestre" class="form-select" onchange="this.form.submit()">
+                <option value="">Tous les semestres</option>
+                {% for sem in semestres %}
+                {% if sem.code_semestre in semestres_from_data %}
+                <option value="{{ sem.code_semestre }}" {% if request.GET.semestre == sem.code_semestre %}selected{% endif %}>{{ sem.code_semestre }}</option>
+                {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</form>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-0">
+        <div class="d-flex justify-content-between align-items-center">
+            <strong>Nouvelle appréciation</strong>
+            <span class="text-muted small">1 = Très faible, 5 = Excellent</span>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if attributions %}
+        <form method="post" class="row g-3">
+            {% csrf_token %}
+            <div class="col-12">
+                <label class="form-label fw-semibold">Enseignant</label>
+                <select name="attribution_id" class="form-select" required>
+                    <option value="">-- Sélectionner --</option>
+                    {% for a in attributions %}
+                    <option value="{{ a.id }}" {% if request.method == 'POST' and request.POST.attribution_id == a.id|stringformat:"s" %}selected{% endif %}>{{ a.enseignant.nom_complet }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Choisis l'enseignant à évaluer, puis attribue une note à chaque critère pour le cours qu'il a dispensé.</div>
+            </div>
+
+            <div class="col-12">
+                <div class="card bg-light border-0">
+                    <div class="card-body p-3">
+                        <div class="row g-3 align-items-center">
+                            <div class="col-lg-5">
+                                <div class="fw-semibold">Ponctualité</div>
+                                <div class="text-muted small">Respect des horaires, régularité.</div>
+                            </div>
+                            <div class="col-lg-7">
+                                <div class="btn-group w-100" role="group" aria-label="Ponctualité">
+                                    <input type="radio" class="btn-check" name="ponctualite" id="ponctualite1" value="1" {% if request.POST.ponctualite == '1' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="ponctualite1">1</label>
+                                    <input type="radio" class="btn-check" name="ponctualite" id="ponctualite2" value="2" {% if request.POST.ponctualite == '2' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="ponctualite2">2</label>
+                                    <input type="radio" class="btn-check" name="ponctualite" id="ponctualite3" value="3" {% if request.POST.ponctualite == '3' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="ponctualite3">3</label>
+                                    <input type="radio" class="btn-check" name="ponctualite" id="ponctualite4" value="4" {% if request.POST.ponctualite == '4' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="ponctualite4">4</label>
+                                    <input type="radio" class="btn-check" name="ponctualite" id="ponctualite5" value="5" {% if request.POST.ponctualite == '5' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="ponctualite5">5</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div class="card bg-light border-0">
+                    <div class="card-body p-3">
+                        <div class="row g-3 align-items-center">
+                            <div class="col-lg-5">
+                                <div class="fw-semibold">Maîtrise & communication</div>
+                                <div class="text-muted small">Clarté, explications, interaction.</div>
+                            </div>
+                            <div class="col-lg-7">
+                                <div class="btn-group w-100" role="group" aria-label="Maîtrise et communication">
+                                    <input type="radio" class="btn-check" name="maitrise_communication" id="mc1" value="1" {% if request.POST.maitrise_communication == '1' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="mc1">1</label>
+                                    <input type="radio" class="btn-check" name="maitrise_communication" id="mc2" value="2" {% if request.POST.maitrise_communication == '2' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="mc2">2</label>
+                                    <input type="radio" class="btn-check" name="maitrise_communication" id="mc3" value="3" {% if request.POST.maitrise_communication == '3' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="mc3">3</label>
+                                    <input type="radio" class="btn-check" name="maitrise_communication" id="mc4" value="4" {% if request.POST.maitrise_communication == '4' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="mc4">4</label>
+                                    <input type="radio" class="btn-check" name="maitrise_communication" id="mc5" value="5" {% if request.POST.maitrise_communication == '5' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="mc5">5</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div class="card bg-light border-0">
+                    <div class="card-body p-3">
+                        <div class="row g-3 align-items-center">
+                            <div class="col-lg-5">
+                                <div class="fw-semibold">Sens pédagogique & méthodologie</div>
+                                <div class="text-muted small">Organisation, exemples, progression.</div>
+                            </div>
+                            <div class="col-lg-7">
+                                <div class="btn-group w-100" role="group" aria-label="Pédagogie et méthodologie">
+                                    <input type="radio" class="btn-check" name="pedagogie_methodologie" id="pm1" value="1" {% if request.POST.pedagogie_methodologie == '1' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="pm1">1</label>
+                                    <input type="radio" class="btn-check" name="pedagogie_methodologie" id="pm2" value="2" {% if request.POST.pedagogie_methodologie == '2' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="pm2">2</label>
+                                    <input type="radio" class="btn-check" name="pedagogie_methodologie" id="pm3" value="3" {% if request.POST.pedagogie_methodologie == '3' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="pm3">3</label>
+                                    <input type="radio" class="btn-check" name="pedagogie_methodologie" id="pm4" value="4" {% if request.POST.pedagogie_methodologie == '4' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="pm4">4</label>
+                                    <input type="radio" class="btn-check" name="pedagogie_methodologie" id="pm5" value="5" {% if request.POST.pedagogie_methodologie == '5' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="pm5">5</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div class="card bg-light border-0">
+                    <div class="card-body p-3">
+                        <div class="row g-3 align-items-center">
+                            <div class="col-lg-5">
+                                <div class="fw-semibold">Utilisation des TIC</div>
+                                <div class="text-muted small">Supports numériques, outils, ressources.</div>
+                            </div>
+                            <div class="col-lg-7">
+                                <div class="btn-group w-100" role="group" aria-label="Utilisation des TIC">
+                                    <input type="radio" class="btn-check" name="utilisation_tic" id="tic1" value="1" {% if request.POST.utilisation_tic == '1' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="tic1">1</label>
+                                    <input type="radio" class="btn-check" name="utilisation_tic" id="tic2" value="2" {% if request.POST.utilisation_tic == '2' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="tic2">2</label>
+                                    <input type="radio" class="btn-check" name="utilisation_tic" id="tic3" value="3" {% if request.POST.utilisation_tic == '3' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="tic3">3</label>
+                                    <input type="radio" class="btn-check" name="utilisation_tic" id="tic4" value="4" {% if request.POST.utilisation_tic == '4' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="tic4">4</label>
+                                    <input type="radio" class="btn-check" name="utilisation_tic" id="tic5" value="5" {% if request.POST.utilisation_tic == '5' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="tic5">5</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div class="card bg-light border-0">
+                    <div class="card-body p-3">
+                        <div class="row g-3 align-items-center">
+                            <div class="col-lg-5">
+                                <div class="fw-semibold">Disponibilité aux contacts</div>
+                                <div class="text-muted small">Disponibilité, écoute, accompagnement.</div>
+                            </div>
+                            <div class="col-lg-7">
+                                <div class="btn-group w-100" role="group" aria-label="Disponibilité">
+                                    <input type="radio" class="btn-check" name="disponibilite" id="disp1" value="1" {% if request.POST.disponibilite == '1' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="disp1">1</label>
+                                    <input type="radio" class="btn-check" name="disponibilite" id="disp2" value="2" {% if request.POST.disponibilite == '2' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="disp2">2</label>
+                                    <input type="radio" class="btn-check" name="disponibilite" id="disp3" value="3" {% if request.POST.disponibilite == '3' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="disp3">3</label>
+                                    <input type="radio" class="btn-check" name="disponibilite" id="disp4" value="4" {% if request.POST.disponibilite == '4' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="disp4">4</label>
+                                    <input type="radio" class="btn-check" name="disponibilite" id="disp5" value="5" {% if request.POST.disponibilite == '5' %}checked{% endif %} required>
+                                    <label class="btn btn-outline-primary" for="disp5">5</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <label class="form-label fw-semibold">Commentaire (facultatif)</label>
+                <textarea name="commentaire" class="form-control" rows="4" style="resize:none;" placeholder="Ex: points forts, points à améliorer, suggestions...">{% if request.method == 'POST' %}{{ request.POST.commentaire }}{% endif %}</textarea>
+            </div>
+
+            <div class="col-12">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+                    <div class="text-muted small">
+                        <i class="bi bi-shield-lock me-1"></i>Ton appréciation est enregistrée et visible par l’enseignant.
+                    </div>
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-check2-circle me-1"></i>Enregistrer l’appréciation
+                    </button>
+                </div>
+            </div>
+        </form>
+        {% else %}
+        <div class="alert alert-warning mb-0">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            Aucun cours/enseignant trouvé pour votre classe et votre année.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header text-white border-0 py-3" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+        <div class="d-flex justify-content-between align-items-center">
+            <strong class="fs-5"><i class="bi bi-star-fill me-2"></i>Mes évaluations</strong>
+            <span class="badge bg-white text-dark fs-6">{{ evaluations|length }}</span>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if evaluations %}
+        <div class="list-group list-group-flush">
+            {% for ev in evaluations %}
+            <div class="list-group-item px-4 py-3 border-0 border-bottom">
+                <div class="row align-items-start">
+                    <div class="col-lg-8">
+                        <div class="d-flex align-items-start mb-2">
+                            <div class="rounded-circle bg-gradient p-2 me-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                <i class="bi bi-book-fill text-white" style="font-size: 20px;"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1 fw-bold">{{ ev.attribution.get_intitule }}</h6>
+                                <div class="text-muted small">
+                                    <span class="badge bg-dark me-1">{{ ev.attribution.code_cours }}</span>
+                                    <i class="bi bi-person-badge me-1"></i>{{ ev.attribution.matricule_en.nom_complet }}
+                                    <span class="mx-2">|</span>
+                                    <i class="bi bi-calendar3 me-1"></i>{{ ev.annee_academique }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row g-2 mt-2">
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <div class="p-2 bg-light rounded text-center">
+                                    <div class="small text-muted">Ponc.</div>
+                                    <div class="fw-bold">{{ ev.ponctualite }}/5</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <div class="p-2 bg-light rounded text-center">
+                                    <div class="small text-muted">Maîtrise</div>
+                                    <div class="fw-bold">{{ ev.maitrise_communication }}/5</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <div class="p-2 bg-light rounded text-center">
+                                    <div class="small text-muted">Pédago.</div>
+                                    <div class="fw-bold">{{ ev.pedagogie_methodologie }}/5</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <div class="p-2 bg-light rounded text-center">
+                                    <div class="small text-muted">TIC</div>
+                                    <div class="fw-bold">{{ ev.utilisation_tic }}/5</div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <div class="p-2 bg-light rounded text-center">
+                                    <div class="small text-muted">Dispo.</div>
+                                    <div class="fw-bold">{{ ev.disponibilite }}/5</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if ev.commentaire %}
+                        <div class="mt-3 p-3 bg-light rounded" style="border-left: 3px solid #667eea;">
+                            <div class="small text-muted mb-1"><i class="bi bi-chat-quote me-1"></i>Commentaire</div>
+                            <div style="white-space: pre-wrap;">{{ ev.commentaire }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="col-lg-4">
+                        <div class="text-center mb-3">
+                            <div class="p-3 rounded" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                <div class="small text-white opacity-75 mb-1">Note Finale</div>
+                                <div class="display-5 fw-bold text-white">{{ ev.moyenne }}/5</div>
+                                <div class="text-white">{% widthratio ev.moyenne 5 100 %}%</div>
+                            </div>
+                            <div class="small text-muted mt-2">
+                                <i class="bi bi-clock me-1"></i>{{ ev.date_creation|date:"d/m/Y H:i" }}
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#detailModal{{ ev.id }}">
+                                <i class="bi bi-eye me-1"></i>Voir détails
+                            </button>
+                            <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal{{ ev.id }}">
+                                <i class="bi bi-pencil me-1"></i>Modifier
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal{{ ev.id }}">
+                                <i class="bi bi-trash me-1"></i>Supprimer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Modals pour chaque évaluation -->
+        {% for ev in evaluations %}
+        <!-- Modal Détails -->
+        <div class="modal fade" id="detailModal{{ ev.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                        <h5 class="modal-title"><i class="bi bi-eye me-2"></i>Détails de l'évaluation</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <h6 class="fw-bold">{{ ev.attribution.get_intitule }}</h6>
+                            <div class="text-muted">
+                                <span class="badge bg-dark">{{ ev.attribution.code_cours }}</span>
+                                <span class="ms-2">{{ ev.attribution.matricule_en.nom_complet }}</span>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <div class="p-3 bg-light rounded text-center">
+                                    <i class="bi bi-clock-fill text-primary mb-2" style="font-size: 24px;"></i>
+                                    <div class="small text-muted">Ponctualité</div>
+                                    <div class="fs-3 fw-bold">{{ ev.ponctualite }}/5</div>
+                                    <div class="small text-muted">{% widthratio ev.ponctualite 5 100 %}%</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="p-3 bg-light rounded text-center">
+                                    <i class="bi bi-chat-dots-fill text-success mb-2" style="font-size: 24px;"></i>
+                                    <div class="small text-muted">Maîtrise & Communication</div>
+                                    <div class="fs-3 fw-bold">{{ ev.maitrise_communication }}/5</div>
+                                    <div class="small text-muted">{% widthratio ev.maitrise_communication 5 100 %}%</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="p-3 bg-light rounded text-center">
+                                    <i class="bi bi-book-fill text-info mb-2" style="font-size: 24px;"></i>
+                                    <div class="small text-muted">Pédagogie & Méthodologie</div>
+                                    <div class="fs-3 fw-bold">{{ ev.pedagogie_methodologie }}/5</div>
+                                    <div class="small text-muted">{% widthratio ev.pedagogie_methodologie 5 100 %}%</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="p-3 bg-light rounded text-center">
+                                    <i class="bi bi-laptop-fill text-warning mb-2" style="font-size: 24px;"></i>
+                                    <div class="small text-muted">Utilisation des TIC</div>
+                                    <div class="fs-3 fw-bold">{{ ev.utilisation_tic }}/5</div>
+                                    <div class="small text-muted">{% widthratio ev.utilisation_tic 5 100 %}%</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="p-3 bg-light rounded text-center">
+                                    <i class="bi bi-person-check-fill text-danger mb-2" style="font-size: 24px;"></i>
+                                    <div class="small text-muted">Disponibilité</div>
+                                    <div class="fs-3 fw-bold">{{ ev.disponibilite }}/5</div>
+                                    <div class="small text-muted">{% widthratio ev.disponibilite 5 100 %}%</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-4 rounded text-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <div class="small text-white opacity-75">Note Finale Moyenne</div>
+                            <div class="display-4 fw-bold text-white">{{ ev.moyenne }}/5</div>
+                            <div class="text-white fs-5">{% widthratio ev.moyenne 5 100 %}%</div>
+                        </div>
+                        {% if ev.commentaire %}
+                        <div class="mt-3">
+                            <strong>Commentaire:</strong>
+                            <div class="p-3 bg-light rounded mt-2" style="white-space: pre-wrap;">{{ ev.commentaire }}</div>
+                        </div>
+                        {% endif %}
+                        <div class="mt-3 small text-muted">
+                            <i class="bi bi-calendar3 me-1"></i>Évalué le {{ ev.date_creation|date:"d/m/Y à H:i" }}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal Modifier -->
+        <div class="modal fade" id="editModal{{ ev.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                        <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Modifier l'évaluation</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form method="post" action="#">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="edit">
+                        <input type="hidden" name="eval_id" value="{{ ev.id }}">
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <strong>Cours:</strong> {{ ev.attribution.get_intitule }}<br>
+                                <strong>Enseignant:</strong> {{ ev.attribution.matricule_en.nom_complet }}
+                            </div>
+                            <hr>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Ponctualité</label>
+                                    <select class="form-select" name="ponctualite" required>
+                                        {% for i in "12345" %}
+                                        <option value="{{ i }}" {% if ev.ponctualite|stringformat:"s" == i %}selected{% endif %}>{{ i }} - {% if i == "1" %}Très faible{% elif i == "2" %}Faible{% elif i == "3" %}Moyen{% elif i == "4" %}Bon{% else %}Excellent{% endif %}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Maîtrise & Communication</label>
+                                    <select class="form-select" name="maitrise_communication" required>
+                                        {% for i in "12345" %}
+                                        <option value="{{ i }}" {% if ev.maitrise_communication|stringformat:"s" == i %}selected{% endif %}>{{ i }} - {% if i == "1" %}Très faible{% elif i == "2" %}Faible{% elif i == "3" %}Moyen{% elif i == "4" %}Bon{% else %}Excellent{% endif %}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Pédagogie & Méthodologie</label>
+                                    <select class="form-select" name="pedagogie_methodologie" required>
+                                        {% for i in "12345" %}
+                                        <option value="{{ i }}" {% if ev.pedagogie_methodologie|stringformat:"s" == i %}selected{% endif %}>{{ i }} - {% if i == "1" %}Très faible{% elif i == "2" %}Faible{% elif i == "3" %}Moyen{% elif i == "4" %}Bon{% else %}Excellent{% endif %}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Utilisation des TIC</label>
+                                    <select class="form-select" name="utilisation_tic" required>
+                                        {% for i in "12345" %}
+                                        <option value="{{ i }}" {% if ev.utilisation_tic|stringformat:"s" == i %}selected{% endif %}>{{ i }} - {% if i == "1" %}Très faible{% elif i == "2" %}Faible{% elif i == "3" %}Moyen{% elif i == "4" %}Bon{% else %}Excellent{% endif %}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Disponibilité</label>
+                                    <select class="form-select" name="disponibilite" required>
+                                        {% for i in "12345" %}
+                                        <option value="{{ i }}" {% if ev.disponibilite|stringformat:"s" == i %}selected{% endif %}>{{ i }} - {% if i == "1" %}Très faible{% elif i == "2" %}Faible{% elif i == "3" %}Moyen{% elif i == "4" %}Bon{% else %}Excellent{% endif %}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fw-semibold">Commentaire</label>
+                                    <textarea class="form-control" name="commentaire" rows="3" style="resize:none;">{{ ev.commentaire }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal Supprimer -->
+        <div class="modal fade" id="deleteModal{{ ev.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title"><i class="bi bi-trash me-2"></i>Supprimer l'évaluation</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form method="post" action="#">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="eval_id" value="{{ ev.id }}">
+                        <div class="modal-body">
+                            <div class="alert alert-warning">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                <strong>Attention!</strong> Cette action est irréversible.
+                            </div>
+                            <p>Êtes-vous sûr de vouloir supprimer votre évaluation de <strong>{{ ev.attribution.matricule_en.nom_complet }}</strong> pour le cours <strong>{{ ev.attribution.get_intitule }}</strong> ?</p>
+                            <div class="p-3 bg-light rounded">
+                                <div class="text-center">
+                                    <div class="small text-muted">Note finale</div>
+                                    <div class="fs-3 fw-bold">{{ ev.moyenne }}/5</div>
+                                    <div class="small text-muted">{% widthratio ev.moyenne 5 100 %}%</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="submit" class="btn btn-danger">Supprimer définitivement</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        
+        {% else %}
+        <div class="text-center text-muted py-5">
+            <i class="bi bi-star display-3 opacity-25"></i>
+            <div class="mt-3 fs-5">Aucune évaluation enregistrée</div>
+            <div class="small">Commencez par évaluer un enseignant ci-dessus</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

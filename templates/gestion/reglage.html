@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+
+{% block title %}Réglages du Système{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">
+                <i class="bi bi-sliders text-secondary me-2"></i>
+                Réglages du Système
+            </h2>
+            <p class="text-muted">Configuration des paramètres académiques</p>
+        </div>
+        <a href="{% url 'home' %}" class="btn btn-secondary">
+            <i class="bi bi-house me-2"></i>Accueil
+        </a>
+    </div>
+
+    <!-- Grille des modules de réglage -->
+    <div class="row g-4">
+        <!-- LIGNE 1 -->
+        <!-- Sections -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card h-100 hover-card text-center">
+                <div class="card-body">
+                    <i class="bi bi-building" style="font-size: 3rem; color: #007bff;"></i>
+                    <h6 class="mt-3 mb-3">Sections</h6>
+                    <a href="/admin/reglage/section/" class="btn btn-sm btn-info">
+                        <i class="bi bi-gear me-1"></i>Gérer
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Départements -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card h-100 hover-card text-center">
+                <div class="card-body">
+                    <i class="bi bi-diagram-3" style="font-size: 3rem; color: #007bff;"></i>
+                    <h6 class="mt-3 mb-3">Départements</h6>
+                    <a href="/admin/reglage/departement/" class="btn btn-sm btn-info">
+                        <i class="bi bi-gear me-1"></i>Gérer
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mentions -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card h-100 hover-card text-center">
+                <div class="card-body">
+                    <i class="bi bi-mortarboard" style="font-size: 3rem; color: #007bff;"></i>
+                    <h6 class="mt-3 mb-3">Mentions</h6>
+                    <a href="/admin/reglage/mention/" class="btn btn-sm btn-info">
+                        <i class="bi bi-gear me-1"></i>Gérer
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Niveaux -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card h-100 hover-card text-center">
+                <div class="card-body">
+                    <i class="bi bi-layers" style="font-size: 3rem; color: #007bff;"></i>
+                    <h6 class="mt-3 mb-3">Niveaux</h6>
+                    <a href="/admin/reglage/niveau/" class="btn btn-sm btn-info">
+                        <i class="bi bi-gear me-1"></i>Gérer
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- LIGNE 2 -->
+        <!-- Classes -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card h-100 hover-card text-center">
+                <div class="card-body">
+                    <i class="bi bi-people" style="font-size: 3rem; color: #007bff;"></i>
+                    <h6 class="mt-3 mb-3">Classes</h6>
+                    <a href="/admin/reglage/classe/" class="btn btn-sm btn-info">
+                        <i class="bi bi-gear me-1"></i>Gérer
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grades -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card h-100 hover-card text-center">
+                <div class="card-body">
+                    <i class="bi bi-award" style="font-size: 3rem; color: #007bff;"></i>
+                    <h6 class="mt-3 mb-3">Grades</h6>
+                    <a href="/admin/reglage/grade/" class="btn btn-sm btn-info">
+                        <i class="bi bi-gear me-1"></i>Gérer
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Catégories -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card h-100 hover-card text-center">
+                <div class="card-body">
+                    <i class="bi bi-person-badge" style="font-size: 3rem; color: #007bff;"></i>
+                    <h6 class="mt-3 mb-3">Catégories</h6>
+                    <a href="/admin/reglage/categorie/" class="btn btn-sm btn-info">
+                        <i class="bi bi-gear me-1"></i>Gérer
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Semestres -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card h-100 hover-card text-center">
+                <div class="card-body">
+                    <i class="bi bi-calendar-event" style="font-size: 3rem; color: #007bff;"></i>
+                    <h6 class="mt-3 mb-3">Semestres</h6>
+                    <a href="/admin/reglage/semestre/" class="btn btn-sm btn-info">
+                        <i class="bi bi-gear me-1"></i>Gérer
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- LIGNE 3 -->
+        <!-- Fonctions -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card h-100 hover-card text-center">
+                <div class="card-body">
+                    <i class="bi bi-list-check" style="font-size: 3rem; color: #007bff;"></i>
+                    <h6 class="mt-3 mb-3">Fonctions</h6>
+                    <a href="/admin/reglage/fonction/" class="btn btn-sm btn-info">
+                        <i class="bi bi-gear me-1"></i>Gérer
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Années Académiques -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card h-100 hover-card text-center">
+                <div class="card-body">
+                    <i class="bi bi-calendar2-range" style="font-size: 3rem; color: #28a745;"></i>
+                    <h6 class="mt-3 mb-3">Années Académiques</h6>
+                    <a href="/admin/reglage/anneeacademique/" class="btn btn-sm btn-success">
+                        <i class="bi bi-gear me-1"></i>Gérer
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Types de Charge -->
+        <div class="col-md-6 col-lg-3">
+            <div class="card h-100 hover-card text-center">
+                <div class="card-body">
+                    <i class="bi bi-clipboard-data" style="font-size: 3rem; color: #007bff;"></i>
+                    <h6 class="mt-3 mb-3">Types de Charge</h6>
+                    <a href="/admin/reglage/typecharge/" class="btn btn-sm btn-info">
+                        <i class="bi bi-gear me-1"></i>Gérer
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

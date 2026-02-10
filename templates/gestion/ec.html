@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestion des EC{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-end mb-4">
+    <div>
+        <a href="{% url 'import_ec' %}" class="btn btn-success me-2">
+            <i class="bi bi-file-earmark-excel me-2"></i>Importer Excel
+        </a>
+        <button type="button" class="btn btn-info me-2" data-bs-toggle="modal" data-bs-target="#addModal">
+            <i class="bi bi-plus-circle me-2"></i>Ajouter
+        </button>
+        {% if user.role != 'GESTIONNAIRE' %}
+        <a href="{% url 'supprimer_tout_ec' %}" class="btn btn-danger">
+            <i class="bi bi-trash me-2"></i>Supprimer tout
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <h6 class="card-title">Total EC</h6>
+                <h2 class="mb-0">{{ ecs.count }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Barre de recherche -->
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" class="form-control" placeholder="Rechercher par code ou intitulé..." value="{{ search_query|default:'' }}">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-filter me-1"></i>Filtrer
+                </button>
+            </div>
+            {% if search_query %}
+            <div class="col-md-2">
+                <a href="{% url 'gestion_ec' %}" class="btn btn-outline-secondary w-100">
+                    <i class="bi bi-x me-1"></i>Réinitialiser
+                </a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-table me-2"></i>Liste des EC</span>
+        <span class="badge bg-secondary">{{ ecs.count }} résultat(s)</span>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Code EC</th>
+                        <th>Intitulé</th>
+                        <th>UE</th>
+                        <th>Crédits</th>
+                        <th>Seuil</th>
+                        <th>Catégorie</th>
+                        <th>Classe</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ec in ecs %}
+                    <tr>
+                        <td><strong>{{ ec.code_ec }}</strong></td>
+                        <td>{{ ec.intitule_ue }}</td>
+                        <td><span class="badge bg-info">{{ ec.code_ue }}</span></td>
+                        <td><span class="badge bg-primary">{{ ec.credit }} crédits</span></td>
+                        <td><span class="badge bg-warning">{{ ec.seuil }}</span></td>
+                        <td>
+                            {% if ec.categorie %}
+                            <span class="badge bg-success">{{ ec.categorie }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ec.classe %}
+                            <span class="badge bg-info">{{ ec.classe.code_classe }}</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'modifier_ec' ec.code_ec %}" class="btn btn-sm btn-warning" title="Modifier">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'supprimer_ec' ec.code_ec %}" class="btn btn-sm btn-danger" title="Supprimer">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="text-center text-muted">Aucun EC trouvé</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Ajouter un EC</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Code EC *</label>
+                            {{ form.code_ec }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Intitulé *</label>
+                            {{ form.intitule_ue }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">UE *</label>
+                            {{ form.code_ue }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Crédits *</label>
+                            {{ form.credit }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Seuil *</label>
+                            {{ form.seuil }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Catégorie</label>
+                            {{ form.categorie }}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Classe</label>
+                        {{ form.classe }}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-danger"><i class="bi bi-save me-2"></i>Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

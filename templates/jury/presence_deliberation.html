@@ -1,0 +1,244 @@
+{% extends 'base.html' %}
+
+{% block title %}Présence à la délibération{% endblock %}
+
+{% block extra_css %}
+<style>
+.modern-card {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    background: white;
+}
+
+.modern-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.card-header-modern {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.25rem 1.5rem;
+    font-weight: 600;
+    border: none;
+}
+
+.page-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 20px;
+    margin-bottom: 2rem;
+    box-shadow: 0 8px 30px rgba(102, 126, 234, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.page-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    opacity: 0.3;
+}
+
+.page-header h2 {
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    font-weight: 700;
+}
+
+.modern-btn {
+    border-radius: 12px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: 2px solid;
+}
+
+.modern-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.form-select {
+    border-radius: 10px;
+    border: 2px solid #e2e8f0;
+    padding: 0.5rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.table-modern {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.table-modern thead {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+}
+
+.table-modern tbody tr {
+    transition: all 0.2s ease;
+}
+
+.table-modern tbody tr:hover {
+    background: rgba(102, 126, 234, 0.05);
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.badge-modern {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="page-header animate-fade-in">
+        <h2>
+            <i class="bi bi-people-fill me-3"></i>
+            Présence à la délibération
+        </h2>
+        <p class="mb-0 mt-2" style="opacity: 0.95;">Enregistrez la présence des enseignants intervenant dans la classe {{ classe.code_classe }}</p>
+    </div>
+
+    <div class="modern-card mb-4 animate-fade-in" style="animation-delay: 0.1s;">
+        <div class="card-header-modern">
+            <i class="bi bi-info-circle me-2"></i>
+            Informations
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-auto">
+                    <span class="badge badge-modern bg-primary" style="font-size: 1rem; padding: 0.75rem 1.25rem;">
+                        <i class="bi bi-mortarboard me-2"></i>Classe: <strong>{{ classe.code_classe }}</strong>
+                    </span>
+                </div>
+                <div class="col-auto">
+                    <span class="badge badge-modern bg-info" style="font-size: 1rem; padding: 0.75rem 1.25rem;">
+                        <i class="bi bi-calendar3 me-2"></i>Année: <strong>{{ annee }}</strong>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modern-card mb-4 animate-fade-in" style="animation-delay: 0.2s;">
+        <div class="card-header-modern">
+            <i class="bi bi-clipboard-check me-2"></i>
+            Informations de la délibération
+        </div>
+        <div class="card-body">
+            <form method="post" id="presenceForm" target="_blank">
+                {% csrf_token %}
+                
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <label class="form-label">
+                            <i class="bi bi-calendar-event me-1"></i>Session
+                        </label>
+                        <input type="text" name="session" class="form-control" placeholder="Ex: Janvier 2026" value="{{ session_defaut }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">
+                            <i class="bi bi-calendar-check me-1"></i>Date de délibération
+                        </label>
+                        <input type="date" name="date_deliberation" class="form-control" value="{{ date_defaut }}" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">
+                            <i class="bi bi-file-text me-1"></i>Référence décision DG
+                        </label>
+                        <input type="text" name="decision_reference" class="form-control" placeholder="Ex: DG 005/2025" value="{{ decision_defaut }}">
+                    </div>
+                </div>
+
+                <div class="table-responsive mb-4">
+                    <table class="table table-modern mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width: 15%;">Matricule</th>
+                                <th style="width: 40%;">Nom complet</th>
+                                <th style="width: 20%;">Grade</th>
+                                <th style="width: 25%;">Présence</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ens in enseignants %}
+                            <tr>
+                                <td><span class="badge badge-modern bg-secondary">{{ ens.matricule }}</span></td>
+                                <td><strong>{{ ens.nom }}</strong></td>
+                                <td>{{ ens.grade }}</td>
+                                <td>
+                                    <select name="presence_{{ ens.matricule }}" class="form-select form-select-sm">
+                                        <option value="present">Présent(e)</option>
+                                        <option value="absent">Absent(e)</option>
+                                        <option value="excuse">Excusé(e)</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">
+                                    Aucun enseignant trouvé pour cette classe.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">
+                        <i class="bi bi-chat-left-text me-1"></i>Observations du jury
+                    </label>
+                    <textarea name="observations" class="form-control" rows="4" placeholder="Saisissez les observations du jury..."></textarea>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" name="action" value="save" class="btn btn-primary modern-btn">
+                        <i class="bi bi-check2-circle me-1"></i>
+                        Enregistrer les présences
+                    </button>
+                    <button type="submit" name="action" value="generate_pv" class="btn btn-success modern-btn">
+                        <i class="bi bi-file-earmark-pdf me-1"></i>
+                        Générer le PV (PDF)
+                    </button>
+                    <a href="{% url 'jury_imprimables' %}" class="btn btn-outline-secondary modern-btn">
+                        <i class="bi bi-arrow-left me-1"></i>
+                        Retour
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

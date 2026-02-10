@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestion des Cohortes{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-collection me-2"></i>Gestion des Cohortes</h2>
+    <div>
+        <a href="{% url 'import_cohortes' %}" class="btn btn-primary me-2">
+            <i class="bi bi-file-earmark-excel me-2"></i>Importer Excel
+        </a>
+        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addModal">
+            <i class="bi bi-plus-circle me-2"></i>Ajouter
+        </button>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h6 class="card-title">Total Cohortes</h6>
+                <h2 class="mb-0">{{ cohortes.count }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><i class="bi bi-table me-2"></i>Liste des Cohortes</div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Code Cohorte</th>
+                        <th>Libellé</th>
+                        <th>Date de Début</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cohorte in cohortes %}
+                    <tr>
+                        <td><strong>{{ cohorte.code_cohorte }}</strong></td>
+                        <td>{{ cohorte.lib_cohorte }}</td>
+                        <td>{{ cohorte.debut|date:"d/m/Y" }}</td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'voir_cohorte' cohorte.code_cohorte %}" class="btn btn-sm btn-info" title="Voir détails">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'modifier_cohorte' cohorte.code_cohorte %}" class="btn btn-sm btn-warning" title="Modifier">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'supprimer_cohorte' cohorte.code_cohorte %}" class="btn btn-sm btn-danger" title="Supprimer">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center text-muted">Aucune cohorte trouvée</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Ajouter une Cohorte</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Code Cohorte *</label>
+                        {{ form.code_cohorte }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Libellé *</label>
+                        {{ form.lib_cohorte }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Date de Début *</label>
+                        {{ form.debut }}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success"><i class="bi bi-save me-2"></i>Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

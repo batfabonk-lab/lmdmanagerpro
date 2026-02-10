@@ -1,0 +1,313 @@
+{% extends 'base.html' %}
+
+{% block title %}Résultats{% endblock %}
+
+{% block content %}
+<style>
+    .result-hero {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 16px;
+        padding: 30px;
+        color: #fff;
+        margin-bottom: 24px;
+    }
+    .result-hero h2 { margin: 0 0 4px 0; font-size: 1.6rem; font-weight: 700; }
+    .result-hero p { margin: 0; opacity: .8; font-size: .9rem; }
+
+    .semester-card {
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid #e8ecf1;
+        overflow: hidden;
+        transition: box-shadow .2s, transform .2s;
+        height: 100%;
+    }
+    .semester-card:hover {
+        box-shadow: 0 8px 30px rgba(0,0,0,.1);
+        transform: translateY(-2px);
+    }
+    .semester-card .card-top {
+        padding: 20px 24px 16px;
+    }
+    .semester-card .card-top .label {
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    .semester-card .card-top .period-name {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #1a1a2e;
+    }
+
+    .stat-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0;
+    }
+    .stat-item {
+        padding: 14px 20px;
+        border-top: 1px solid #f0f0f5;
+    }
+    .stat-item:nth-child(odd) { border-right: 1px solid #f0f0f5; }
+    .stat-item .stat-label { font-size: .72rem; color: #8a8fa8; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 2px; }
+    .stat-item .stat-value { font-size: 1.3rem; font-weight: 700; }
+
+    .decision-bar {
+        padding: 12px 20px;
+        border-top: 1px solid #f0f0f5;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .decision-bar .decision-label { font-size: .72rem; color: #8a8fa8; text-transform: uppercase; letter-spacing: .8px; }
+    .decision-bar .decision-value { font-weight: 700; font-size: .9rem; }
+
+    .download-btn-area {
+        padding: 16px 20px;
+        border-top: 1px solid #f0f0f5;
+        text-align: center;
+    }
+    .download-btn-area .btn {
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: .85rem;
+        padding: 8px 20px;
+    }
+
+    .color-s1 { color: #667eea; }
+    .color-s2 { color: #11998e; }
+    .color-annuel { color: #fa709a; }
+    .bg-s1 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .bg-s2 { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+    .bg-annuel { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+    .border-top-s1 { border-top: 4px solid #667eea; }
+    .border-top-s2 { border-top: 4px solid #11998e; }
+    .border-top-annuel { border-top: 4px solid #fa709a; }
+
+    .badge-decision {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 6px;
+        font-size: .78rem;
+        font-weight: 600;
+    }
+    .badge-adm { background: #d4edda; color: #155724; }
+    .badge-admd { background: #fff3cd; color: #856404; }
+    .badge-aj { background: #f8d7da; color: #721c24; }
+    .badge-def { background: #e2e3e5; color: #383d41; }
+    .badge-none { background: #f0f0f5; color: #8a8fa8; }
+
+    .no-data-state {
+        padding: 30px 20px;
+        text-align: center;
+        color: #b0b5c3;
+    }
+    .no-data-state i { font-size: 2.5rem; opacity: .4; }
+    .no-data-state p { margin-top: 8px; font-size: .85rem; }
+</style>
+
+<!-- Hero -->
+<div class="result-hero">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
+        <div>
+            <h2><i class="bi bi-trophy-fill me-2"></i>Mes Résultats</h2>
+            <p><i class="bi bi-info-circle me-1"></i>Résultats de délibération du jury</p>
+        </div>
+        <div class="mt-2 mt-md-0">
+            {% if annee_code %}<span class="badge bg-white text-dark me-1 fs-6">{{ annee_code }}</span>{% endif %}
+            {% if classe_active %}<span class="badge bg-white text-dark fs-6">{{ classe_active.code_classe }}</span>{% endif %}
+        </div>
+    </div>
+</div>
+
+{% if not jury_publie %}
+<div class="card border-0 shadow-sm" style="border-radius:14px;">
+    <div class="card-body text-center py-5">
+        <i class="bi bi-lock-fill display-1 text-warning"></i>
+        <h4 class="text-muted mb-3 mt-3">Résultats non disponibles</h4>
+        <p class="text-muted mb-4">Les résultats ne sont pas encore publiés. Veuillez consulter le communiqué pour connaître la date de délibération.</p>
+        <a class="btn btn-warning btn-lg shadow-sm" href="{% url 'etudiant_communique' %}" style="border-radius:10px;">
+            <i class="bi bi-megaphone-fill me-2"></i>Consulter le communiqué
+        </a>
+    </div>
+</div>
+{% else %}
+
+{% if semestres_niveau %}
+<div class="row g-4">
+
+    <!-- Semestre 1 -->
+    <div class="col-12 col-lg-4">
+        <div class="semester-card border-top-s1">
+            {% if resume_s1 and resume_s1.has_data %}
+            <div class="card-top">
+                <div class="label color-s1">Semestre</div>
+                <div class="period-name">S{{ semestres_niveau.0 }}</div>
+            </div>
+            <div class="stat-grid">
+                <div class="stat-item">
+                    <div class="stat-label">Crédits capitalisés</div>
+                    <div class="stat-value color-s1">{{ resume_s1.credits_valides }} <small class="text-muted fw-normal" style="font-size:.7rem;">/ {{ resume_s1.credits_total }}</small></div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Moyenne</div>
+                    <div class="stat-value">{{ resume_s1.moyenne|floatformat:2 }} <small class="text-muted fw-normal" style="font-size:.7rem;">/20</small></div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Cat. A</div>
+                    <div class="stat-value" style="font-size:1.1rem;">{% if resume_s1.moyenne_cat_a %}{{ resume_s1.moyenne_cat_a|floatformat:1 }}{% else %}-{% endif %}</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Cat. B</div>
+                    <div class="stat-value" style="font-size:1.1rem;">{% if resume_s1.moyenne_cat_b %}{{ resume_s1.moyenne_cat_b|floatformat:1 }}{% else %}-{% endif %}</div>
+                </div>
+            </div>
+            <div class="decision-bar">
+                <div>
+                    <div class="decision-label">Mention</div>
+                    <div style="font-size:.82rem; color:#444;">{{ resume_s1.mention|default:"-" }}</div>
+                </div>
+                <span class="badge-decision {% if resume_s1.decision_code == 'ADM' %}badge-adm{% elif resume_s1.decision_code == 'ADMD' or resume_s1.decision_code == 'COMP' %}badge-admd{% elif resume_s1.decision_code == 'AJ' %}badge-aj{% elif resume_s1.decision_code == 'DEF' %}badge-def{% else %}badge-none{% endif %}">
+                    {{ resume_s1.decision_label|default:"—" }}
+                </span>
+            </div>
+            <div class="download-btn-area">
+                <a href="{% url 'etudiant_bulletin_pdf' %}?annee={{ annee_code }}&vue=s1" class="btn btn-outline-primary w-100" target="_blank">
+                    <i class="bi bi-file-earmark-pdf me-1"></i>Télécharger bulletin S{{ semestres_niveau.0 }}
+                </a>
+            </div>
+            {% else %}
+            <div class="card-top">
+                <div class="label color-s1">Semestre</div>
+                <div class="period-name">S{{ semestres_niveau.0 }}</div>
+            </div>
+            <div class="no-data-state">
+                <i class="bi bi-hourglass-split"></i>
+                <p>Résultats non disponibles</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Semestre 2 -->
+    <div class="col-12 col-lg-4">
+        <div class="semester-card border-top-s2">
+            {% if resume_s2 and resume_s2.has_data %}
+            <div class="card-top">
+                <div class="label color-s2">Semestre</div>
+                <div class="period-name">S{{ semestres_niveau.1 }}</div>
+            </div>
+            <div class="stat-grid">
+                <div class="stat-item">
+                    <div class="stat-label">Crédits capitalisés</div>
+                    <div class="stat-value color-s2">{{ resume_s2.credits_valides }} <small class="text-muted fw-normal" style="font-size:.7rem;">/ {{ resume_s2.credits_total }}</small></div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Moyenne</div>
+                    <div class="stat-value">{{ resume_s2.moyenne|floatformat:2 }} <small class="text-muted fw-normal" style="font-size:.7rem;">/20</small></div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Cat. A</div>
+                    <div class="stat-value" style="font-size:1.1rem;">{% if resume_s2.moyenne_cat_a %}{{ resume_s2.moyenne_cat_a|floatformat:1 }}{% else %}-{% endif %}</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Cat. B</div>
+                    <div class="stat-value" style="font-size:1.1rem;">{% if resume_s2.moyenne_cat_b %}{{ resume_s2.moyenne_cat_b|floatformat:1 }}{% else %}-{% endif %}</div>
+                </div>
+            </div>
+            <div class="decision-bar">
+                <div>
+                    <div class="decision-label">Mention</div>
+                    <div style="font-size:.82rem; color:#444;">{{ resume_s2.mention|default:"-" }}</div>
+                </div>
+                <span class="badge-decision {% if resume_s2.decision_code == 'ADM' %}badge-adm{% elif resume_s2.decision_code == 'ADMD' or resume_s2.decision_code == 'COMP' %}badge-admd{% elif resume_s2.decision_code == 'AJ' %}badge-aj{% elif resume_s2.decision_code == 'DEF' %}badge-def{% else %}badge-none{% endif %}">
+                    {{ resume_s2.decision_label|default:"—" }}
+                </span>
+            </div>
+            <div class="download-btn-area">
+                <a href="{% url 'etudiant_bulletin_pdf' %}?annee={{ annee_code }}&vue=s2" class="btn btn-outline-success w-100" target="_blank">
+                    <i class="bi bi-file-earmark-pdf me-1"></i>Télécharger bulletin S{{ semestres_niveau.1 }}
+                </a>
+            </div>
+            {% else %}
+            <div class="card-top">
+                <div class="label color-s2">Semestre</div>
+                <div class="period-name">S{{ semestres_niveau.1 }}</div>
+            </div>
+            <div class="no-data-state">
+                <i class="bi bi-hourglass-split"></i>
+                <p>Résultats non disponibles</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Annuel -->
+    <div class="col-12 col-lg-4">
+        <div class="semester-card border-top-annuel">
+            {% if resume_annuel and resume_annuel.has_data %}
+            <div class="card-top">
+                <div class="label color-annuel">Résultat</div>
+                <div class="period-name">Annuel</div>
+            </div>
+            <div class="stat-grid">
+                <div class="stat-item">
+                    <div class="stat-label">Crédits capitalisés</div>
+                    <div class="stat-value color-annuel">{{ resume_annuel.credits_valides }} <small class="text-muted fw-normal" style="font-size:.7rem;">/ {{ resume_annuel.credits_total }}</small></div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Moyenne</div>
+                    <div class="stat-value">{{ resume_annuel.moyenne|floatformat:2 }} <small class="text-muted fw-normal" style="font-size:.7rem;">/20</small></div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Cat. A</div>
+                    <div class="stat-value" style="font-size:1.1rem;">{% if resume_annuel.moyenne_cat_a %}{{ resume_annuel.moyenne_cat_a|floatformat:1 }}{% else %}-{% endif %}</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Cat. B</div>
+                    <div class="stat-value" style="font-size:1.1rem;">{% if resume_annuel.moyenne_cat_b %}{{ resume_annuel.moyenne_cat_b|floatformat:1 }}{% else %}-{% endif %}</div>
+                </div>
+            </div>
+            <div class="decision-bar">
+                <div>
+                    <div class="decision-label">Mention</div>
+                    <div style="font-size:.82rem; color:#444;">{{ resume_annuel.mention|default:"-" }}</div>
+                </div>
+                <span class="badge-decision {% if resume_annuel.decision_code == 'ADM' %}badge-adm{% elif resume_annuel.decision_code == 'ADMD' or resume_annuel.decision_code == 'COMP' %}badge-admd{% elif resume_annuel.decision_code == 'AJ' %}badge-aj{% elif resume_annuel.decision_code == 'DEF' %}badge-def{% else %}badge-none{% endif %}">
+                    {{ resume_annuel.decision_label|default:"—" }}
+                </span>
+            </div>
+            <div class="download-btn-area">
+                <a href="{% url 'etudiant_bulletin_pdf' %}?annee={{ annee_code }}&vue=annuel" class="btn btn-outline-danger w-100" target="_blank">
+                    <i class="bi bi-file-earmark-pdf me-1"></i>Télécharger bulletin Annuel
+                </a>
+            </div>
+            {% else %}
+            <div class="card-top">
+                <div class="label color-annuel">Résultat</div>
+                <div class="period-name">Annuel</div>
+            </div>
+            <div class="no-data-state">
+                <i class="bi bi-hourglass-split"></i>
+                <p>Résultats non disponibles</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% else %}
+<div class="card border-0 shadow-sm" style="border-radius:14px;">
+    <div class="card-body text-center py-5">
+        <i class="bi bi-exclamation-triangle display-3 text-info opacity-25"></i>
+        <h5 class="mt-3 text-muted">Semestres indéterminés</h5>
+        <p class="text-muted">Impossible de déterminer les semestres de votre niveau.</p>
+    </div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

@@ -1,0 +1,457 @@
+{% extends 'base.html' %}
+
+{% block title %}Imprimables{% endblock %}
+
+{% block extra_css %}
+<style>
+.modern-card {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    background: white;
+}
+
+.modern-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.card-header-modern {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.25rem 1.5rem;
+    font-weight: 600;
+    border: none;
+}
+
+.card-header-secondary {
+    background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+    color: white;
+    padding: 1.25rem 1.5rem;
+    font-weight: 600;
+    border: none;
+}
+
+.card-header-primary {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+    padding: 1.25rem 1.5rem;
+    font-weight: 600;
+    border: none;
+}
+
+.document-card {
+    border: none;
+    border-radius: 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    height: 100%;
+    background: white;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.document-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.document-card .card-body {
+    padding: 2rem;
+    text-align: center;
+}
+
+.document-card .icon-wrapper {
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    font-size: 2.5rem;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.document-card:hover .icon-wrapper {
+    transform: scale(1.1) rotate(5deg);
+}
+
+.icon-primary {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+}
+
+.icon-success {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+}
+
+.icon-warning {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+}
+
+.modern-btn {
+    border-radius: 12px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: 2px solid;
+}
+
+.modern-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.btn-group.dropend .dropdown-menu {
+    background-color: #fff;
+    opacity: 1;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+.form-control, .form-select {
+    border-radius: 10px;
+    border: 2px solid #e2e8f0;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-label {
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 0.5rem;
+}
+
+.table-modern {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.table-modern thead {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+}
+
+.table-modern tbody tr {
+    transition: all 0.2s ease;
+}
+
+.table-modern tbody tr:hover {
+    background: rgba(102, 126, 234, 0.05);
+    transform: scale(1.01);
+}
+
+.badge-modern {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.animate-slide-in {
+    animation: slideInRight 0.6s ease-out;
+}
+
+.page-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 20px;
+    margin-bottom: 2rem;
+    box-shadow: 0 8px 30px rgba(102, 126, 234, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.page-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+    opacity: 0.3;
+}
+
+.page-header h2 {
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    font-weight: 700;
+}
+
+.gradient-text {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Formulaire de paramètres -->
+    <div class="modern-card mb-4 animate-fade-in" style="animation-delay: 0.1s;">
+        <div class="card-header-modern">
+            <i class="bi bi-sliders me-2"></i>
+            Paramètres de Génération
+        </div>
+        <div class="card-body">
+            <div class="row g-3 mb-4">
+                <div class="col-auto">
+                    <span class="badge badge-modern bg-primary" style="font-size: 1rem; padding: 0.75rem 1.25rem;">
+                        <i class="bi bi-mortarboard me-2"></i>Classe: <strong>{{ selected.classe }}</strong>
+                    </span>
+                </div>
+                <div class="col-auto">
+                    <span class="badge badge-modern bg-info" style="font-size: 1rem; padding: 0.75rem 1.25rem;">
+                        <i class="bi bi-calendar3 me-2"></i>Année: <strong>{{ selected.annee }}</strong>
+                    </span>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap">
+                <div class="btn-group" role="group">
+                    {% if can_imprimer %}
+                        <button type="button" class="btn btn-outline-primary modern-btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-trophy me-1"></i>Palmarès
+                        </button>
+                    {% else %}
+                        <span class="d-inline-block" title="Veuillez d'abord délibérer pour activer les imprimables.">
+                            <button type="button" class="btn btn-outline-primary modern-btn dropdown-toggle disabled" disabled>
+                                <i class="bi bi-trophy me-1"></i>Palmarès
+                            </button>
+                        </span>
+                    {% endif %}
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item {% if not deliberations_disponibles.annuel %}disabled{% endif %}" 
+                               {% if deliberations_disponibles.annuel %}target="_blank" href="{{ links.palmare }}&type=annuel"{% else %}href="#" tabindex="-1" aria-disabled="true" title="Aucune délibération annuelle disponible"{% endif %}>
+                            <i class="bi bi-calendar-range me-2"></i>Annuel
+                            {% if not deliberations_disponibles.annuel %}<small class="text-muted">(Indisponible)</small>{% endif %}
+                        </a></li>
+                        {% for sem in semestres_choices %}
+                            {% for key, value in deliberations_disponibles.semestres.items %}
+                                {% if key == sem %}
+                                    <li><a class="dropdown-item {% if not value %}disabled{% endif %}" 
+                                           {% if value %}target="_blank" href="{{ links.palmare }}&type=semestriel&semestre={{ sem }}"{% else %}href="#" tabindex="-1" aria-disabled="true" title="Délibération S{{ sem }} non disponible"{% endif %}>
+                                        {% if sem == 1 %}<i class="bi bi-1-circle me-2"></i>{% elif sem == 2 %}<i class="bi bi-2-circle me-2"></i>{% elif sem == 3 %}<i class="bi bi-3-circle me-2"></i>{% elif sem == 4 %}<i class="bi bi-4-circle me-2"></i>{% elif sem == 5 %}<i class="bi bi-5-circle me-2"></i>{% elif sem == 6 %}<i class="bi bi-6-circle me-2"></i>{% elif sem == 7 %}<i class="bi bi-7-circle me-2"></i>{% elif sem == 8 %}<i class="bi bi-8-circle me-2"></i>{% elif sem == 9 %}<i class="bi bi-9-circle me-2"></i>{% else %}<i class="bi bi-circle me-2"></i>{% endif %}Semestre {{ sem }}
+                                        {% if not value %}<small class="text-muted">(ND)</small>{% endif %}
+                                    </a></li>
+                                {% endif %}
+                            {% endfor %}
+                        {% endfor %}
+                    </ul>
+                </div>
+                <a class="btn btn-outline-success modern-btn" href="{% url 'jury_presence_deliberation' %}?classe={{ selected.classe }}&annee={{ selected.annee }}">
+                    <i class="bi bi-file-text me-1"></i>PV de délibération
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des étudiants du jury -->
+    <div class="modern-card mb-4 mt-4 animate-fade-in" style="animation-delay: 0.6s;">
+        <div class="card-header-primary d-flex justify-content-between align-items-center">
+            <div>
+                <i class="bi bi-people me-2"></i>
+                Étudiants du jury
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-sm btn-success modern-btn" onclick="imprimerSelection('releves', 'annuel')" id="btnImprimerReleves" disabled>
+                    <i class="bi bi-journal-text me-1"></i>Imprimer les relevés sélectionnés
+                </button>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-info modern-btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" id="btnImprimerProfils" disabled>
+                        <i class="bi bi-person-badge me-1"></i>Imprimer les profils sélectionnés
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="imprimerSelection('profils', 'annuel'); return false;">
+                            <i class="bi bi-calendar-range me-2"></i>Annuel
+                        </a></li>
+                        {% for sem in semestres_choices %}
+                        <li><a class="dropdown-item" href="#" onclick="imprimerSelection('profils', 'semestriel', {{ sem }}); return false;">
+                            <i class="bi bi-1-circle me-2"></i>Semestre {{ sem }}
+                        </a></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-modern mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 5%;">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="selectAll" onchange="toggleAll()">
+                                    <label class="form-check-label" for="selectAll"></label>
+                                </div>
+                            </th>
+                            <th style="width: 16%;">Matricule</th>
+                            <th>Nom complet</th>
+                            <th style="width: 22%;" class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in etudiants %}
+                        <tr>
+                            <td>
+                                <div class="form-check">
+                                    <input class="form-check-input etudiant-checkbox" type="checkbox" 
+                                           value="{{ e.matricule }}" onchange="updateButtons()">
+                                    <label class="form-check-label"></label>
+                                </div>
+                            </td>
+                            <td><span class="badge badge-modern bg-secondary">{{ e.matricule }}</span></td>
+                            <td><strong>{{ e.nom }}</strong></td>
+                            <td class="text-end">
+                                <div class="btn-group" role="group">
+                                    <div class="btn-group dropstart" role="group">
+                                        {% if can_imprimer %}
+                                            <button type="button" class="btn btn-sm btn-outline-info modern-btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                                <i class="bi bi-person-badge me-1"></i>Profil PDF
+                                            </button>
+                                        {% else %}
+                                            <span class="d-inline-block" title="Veuillez d'abord délibérer pour activer les imprimables.">
+                                                <button type="button" class="btn btn-sm btn-outline-info modern-btn dropdown-toggle disabled" disabled>
+                                                    <i class="bi bi-person-badge me-1"></i>Profil PDF
+                                                </button>
+                                            </span>
+                                        {% endif %}
+                                        <ul class="dropdown-menu">
+                                            <li><a class="dropdown-item {% if not deliberations_disponibles.annuel %}disabled{% endif %}" 
+                                                   {% if deliberations_disponibles.annuel %}target="_blank" href="{{ e.profil_pdf_url }}&type=annuel"{% else %}href="#" tabindex="-1" aria-disabled="true" title="Aucune délibération annuelle disponible"{% endif %}>
+                                                <i class="bi bi-calendar-range me-2"></i>Annuel
+                                                {% if not deliberations_disponibles.annuel %}<small class="text-muted">(Indisponible)</small>{% endif %}
+                                            </a></li>
+                                            {% for sem in semestres_choices %}
+                                                {% for key, value in deliberations_disponibles.semestres.items %}
+                                                    {% if key == sem %}
+                                                        <li><a class="dropdown-item {% if not value %}disabled{% endif %}" 
+                                                               {% if value %}target="_blank" href="{{ e.profil_pdf_url }}&type=semestriel&semestre={{ sem }}"{% else %}href="#" tabindex="-1" aria-disabled="true" title="Délibération S{{ sem }} non disponible"{% endif %}>
+                                                            <i class="bi bi-{{ sem }}-circle me-2"></i>Semestre {{ sem }}
+                                                            {% if not value %}<small class="text-muted">(ND)</small>{% endif %}
+                                                        </a></li>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                    {% if can_imprimer %}
+                                        <a class="btn btn-sm btn-outline-warning modern-btn" target="_blank" href="{{ e.releve_url }}">
+                                            <i class="bi bi-journal-text me-1"></i>Relevé
+                                        </a>
+                                    {% else %}
+                                        <span class="d-inline-block" title="Veuillez d'abord délibérer pour activer les imprimables.">
+                                            <a class="btn btn-sm btn-outline-warning modern-btn disabled" href="#" tabindex="-1" aria-disabled="true">
+                                                <i class="bi bi-journal-text me-1"></i>Relevé
+                                            </a>
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">Aucun étudiant trouvé.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.etudiant-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+    updateButtons();
+}
+
+function updateButtons() {
+    const checkboxes = document.querySelectorAll('.etudiant-checkbox:checked');
+    const btnReleves = document.getElementById('btnImprimerReleves');
+    const btnProfils = document.getElementById('btnImprimerProfils');
+    
+    const hasSelection = checkboxes.length > 0;
+    btnReleves.disabled = !hasSelection;
+    btnProfils.disabled = !hasSelection;
+}
+
+function imprimerSelection(docType, typeDelib, semestre) {
+    const checkboxes = document.querySelectorAll('.etudiant-checkbox:checked');
+    const matricules = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (matricules.length === 0) {
+        alert('Veuillez sélectionner au moins un étudiant.');
+        return;
+    }
+    
+    const params = new URLSearchParams({
+        'classe': '{{ selected.classe }}',
+        'annee': '{{ selected.annee }}',
+        'type': typeDelib || 'annuel',
+        'semestre': semestre || '',
+        'matricules': matricules.join(',')
+    });
+    
+    let url;
+    if (docType === 'releves') {
+        url = '{% url "jury_imprimable_releves_selectionnes" %}?' + params.toString();
+    } else if (docType === 'profils') {
+        url = '{% url "jury_imprimable_profils_selectionnes" %}?' + params.toString();
+    }
+    
+    window.open(url, '_blank');
+}
+
+// Initialiser les boutons
+document.addEventListener('DOMContentLoaded', function() {
+    updateButtons();
+});
+</script>
+
+
+{% endblock %}

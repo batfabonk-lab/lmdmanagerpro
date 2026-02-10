@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Sélectionner un Jury - Admin{% endblock %}
+
+{% block content %}
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-warning text-dark">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <i class="bi bi-people-fill me-2"></i>
+                <strong>Sélectionner un Jury</strong>
+            </div>
+            <a href="{% url 'home' %}" class="btn btn-sm btn-outline-dark">
+                <i class="bi bi-arrow-left me-1"></i>Retour
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <p class="text-muted mb-3">Sélectionnez un jury pour visualiser son espace</p>
+        
+        {% if jurys %}
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Code Jury</th>
+                        <th>Classe</th>
+                        <th>Président</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for jury in jurys %}
+                    <tr>
+                        <td><strong>{{ jury.code_jury }}</strong></td>
+                        <td>{{ jury.code_classe }}</td>
+                        <td>{{ jury.president }}</td>
+                        <td>
+                            <a href="{% url 'admin_simulate_jury' code_jury=jury.code_jury %}" class="btn btn-sm btn-warning">
+                                <i class="bi bi-box-arrow-in-right me-1"></i>Accéder à l'espace
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-people display-1 text-muted"></i>
+            <p class="text-muted mt-3">Aucun jury trouvé.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

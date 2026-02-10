@@ -1,0 +1,483 @@
+{% extends 'base.html' %}
+
+{% block title %}Mes Notes{% endblock %}
+
+{% block content %}
+<div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+    <div class="card-body text-white py-4">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
+            <div>
+                <h2 class="mb-2">
+                    <i class="bi bi-journal-text me-2"></i>
+                    Mes Notes
+                </h2>
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    {% if annee_code %}
+                    <span class="badge bg-light text-dark fs-6 px-3 py-2">{{ annee_code }}</span>
+                    {% endif %}
+                    {% for semestre, data in credits_par_semestre.items %}
+                    <span class="badge bg-info text-white fs-6 px-3 py-2">
+                        <i class="bi bi-award me-1"></i>S{{ semestre }}: {{ data.credits_capitalises }}/{{ data.total_credits }}
+                    </span>
+                    {% endfor %}
+                </div>
+                <p class="mb-0 opacity-75">
+                    <i class="bi bi-info-circle me-1"></i>Consultez vos évaluations et résultats
+                </p>
+            </div>
+            <div class="mt-2 mt-md-0">
+                <button type="button" class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#modalRecours">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Envoyer un Recours
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if inscriptions %}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-3 p-md-4">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-12 col-md-4">
+                <label class="form-label fw-semibold"><i class="bi bi-calendar-range me-1 text-primary"></i>Année académique</label>
+                <select name="annee" class="form-select shadow-sm" onchange="this.form.submit()">
+                    {% for ins in inscriptions %}
+                        <option value="{{ ins.annee_academique }}" {% if annee_code == ins.annee_academique %}selected{% endif %}>
+                            {{ ins.annee_academique }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label fw-semibold"><i class="bi bi-book me-1 text-primary"></i>Filtrer par UE</label>
+                <select name="ue" class="form-select shadow-sm" onchange="this.form.submit()">
+                    <option value="">Toutes les UE</option>
+                    {% for ue in toutes_les_ue %}
+                        <option value="{{ ue.code_ue }}" {% if ue_filtre == ue.code_ue %}selected{% endif %}>
+                            {{ ue.code_ue }} - {{ ue.intitule_ue }} (S{{ ue.semestre }})
+                        </option>
+                    {% endfor %}
+                </select>
+                <input type="hidden" name="annee" value="{{ annee_code }}">
+            </div>
+            <div class="col-12 col-md-4 d-flex justify-content-start justify-content-md-end">
+                <a class="btn btn-outline-secondary w-100 w-md-auto" href="{% url 'etudiant_notes' %}">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Réinitialiser
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if evaluations_par_ue %}
+    {% for ue, evals in evaluations_par_ue.items %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header text-white border-0 py-3" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
+                <div class="mb-2 mb-md-0">
+                    <h5 class="mb-1 fw-bold">
+                        <i class="bi bi-book-fill me-2"></i>
+                        {{ ue.intitule_ue }}
+                    </h5>
+                    <small class="opacity-75">Code: {{ ue.code_ue }} | Semestre: {{ ue.semestre }}</small>
+                </div>
+                <div class="d-flex flex-column align-items-end">
+                    {% for item in moyennes_ue_list %}
+                        {% if item.ue == ue %}
+                            <span class="badge bg-white text-dark fs-6 mb-1">
+                                Moyenne: {{ item.moyenne }}/20
+                            </span>
+                        {% endif %}
+                    {% endfor %}
+                    <span class="badge bg-white text-dark fs-6">{{ ue.credit }} crédits</span>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <!-- Vue Desktop: Tableau -->
+            <div class="d-none d-lg-block">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="fw-semibold">EC</th>
+                                <th class="fw-semibold">CC</th>
+                                <th class="fw-semibold">Examen</th>
+                                <th class="fw-semibold">Rattrapage</th>
+                                <th class="fw-semibold">Rachat</th>
+                                <th class="fw-semibold">Note Finale</th>
+                                <th class="fw-semibold">Statut</th>
+                                <th class="fw-semibold">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in evals %}
+                            <tr>
+                                <td>
+                                                    {% if item.ec %}
+                                                        <span class="badge bg-secondary">{{ item.ec.code_ec }}</span>
+                                                        <small class="d-block text-muted">{{ item.ec.intitule_ue }}</small>
+                                                    {% else %}
+                                                        <span class="badge bg-primary">{{ ue.code_ue }}</span>
+                                                        <small class="d-block text-muted">Évaluation directe</small>
+                                                    {% endif %}
+                                                </td>
+                                <td>
+                                    {% if item.evaluation.cc %}
+                                        {{ item.evaluation.cc|floatformat:1 }}/10
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.evaluation.examen %}
+                                        {{ item.evaluation.examen|floatformat:1 }}/10
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.evaluation.rattrapage %}
+                                        {{ item.evaluation.rattrapage|floatformat:1 }}/20
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.evaluation.rachat %}
+                                        {{ item.evaluation.rachat|floatformat:1 }}/20
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td><span class="fs-5 fw-bold text-primary">{{ item.note_finale|floatformat:1 }}/20</span></td>
+                                <td>
+                                    {% if item.evaluation.statut == 'VALIDE' %}
+                                        <span class="badge bg-success">Validé</span>
+                                    {% elif item.evaluation.statut == 'NON_VALIDE' %}
+                                        <span class="badge bg-danger">Non validé</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark">En cours</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-outline-warning" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#modalRecoursCours"
+                                            onclick="preparerRecoursCours('{{ ue.code_ue }}', '{% if item.ec %}{{ item.ec.code_ec }}{% else %}{{ ue.code_ue }}{% endif %}', '{{ item.evaluation.cc }}', '{{ item.evaluation.examen }}', '{{ item.note_finale }}')">
+                                        <i class="bi bi-exclamation-triangle me-1"></i>Recours
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Vue Mobile/Tablet: Cards -->
+            <div class="d-lg-none">
+                {% for item in evals %}
+                <div class="border-bottom p-3">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            {% if item.ec %}
+                                <span class="badge bg-secondary mb-1">{{ item.ec.code_ec }}</span>
+                                <small class="d-block text-muted">{{ item.ec.intitule_ue }}</small>
+                            {% else %}
+                                <span class="badge bg-primary mb-1">{{ ue.code_ue }}</span>
+                                <small class="d-block text-muted">Évaluation directe</small>
+                            {% endif %}
+                        </div>
+                        <div>
+                            {% if item.evaluation.statut == 'VALIDE' %}
+                                <span class="badge bg-success">Validé</span>
+                            {% elif item.evaluation.statut == 'NON_VALIDE' %}
+                                <span class="badge bg-danger">Non validé</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark">En cours</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <div class="p-2 bg-light rounded">
+                                <div class="small text-muted">CC</div>
+                                <div class="fw-semibold">
+                                    {% if item.evaluation.cc %}
+                                        {{ item.evaluation.cc|floatformat:1 }}/10
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2 bg-light rounded">
+                                <div class="small text-muted">Examen</div>
+                                <div class="fw-semibold">
+                                    {% if item.evaluation.examen %}
+                                        {{ item.evaluation.examen|floatformat:1 }}/10
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2 bg-light rounded">
+                                <div class="small text-muted">Rattrapage</div>
+                                <div class="fw-semibold">
+                                    {% if item.evaluation.rattrapage %}
+                                        {{ item.evaluation.rattrapage|floatformat:1 }}/20
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-2 bg-light rounded">
+                                <div class="small text-muted">Rachat</div>
+                                <div class="fw-semibold">
+                                    {% if item.evaluation.rachat %}
+                                        {{ item.evaluation.rachat|floatformat:1 }}/20
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="p-3 rounded text-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <div class="small text-white opacity-75">Note Finale</div>
+                        <div class="fs-3 fw-bold text-white">{{ item.note_finale|floatformat:1 }}/20</div>
+                    </div>
+                    
+                    <div class="mt-3 text-center">
+                        <button type="button" class="btn btn-sm btn-outline-warning w-100" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#modalRecoursCours"
+                                onclick="preparerRecoursCours('{{ ue.code_ue }}', '{% if item.ec %}{{ item.ec.code_ec }}{% else %}{{ ue.code_ue }}{% endif %}', '{{ item.evaluation.cc }}', '{{ item.evaluation.examen }}', '{{ item.note_finale }}')">
+                            <i class="bi bi-exclamation-triangle me-1"></i>Envoyer un Recours
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-journal-x display-3 text-muted opacity-25"></i>
+            <h5 class="mt-3 text-muted">Aucune note disponible</h5>
+            <p class="text-muted">Les notes apparaîtront ici une fois qu'elles seront saisies par vos enseignants.</p>
+        </div>
+    </div>
+{% endif %}
+
+<!-- Modal Recours -->
+<div class="modal fade" id="modalRecours" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Envoyer un Recours au Jury
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" enctype="multipart/form-data" action="{% url 'envoyer_recours' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Un recours permet de signaler une erreur concernant vos notes. Veuillez remplir les informations ci-dessous.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Objet du recours *</label>
+                        <select name="objet" class="form-select" required>
+                            <option value="">-- Sélectionner l'objet --</option>
+                            <option value="mauvaise_transcription_cc">Mauvaise transcription de CC</option>
+                            <option value="mauvais_calcul">Mauvais calcul de la note finale</option>
+                            <option value="manque_cote">Manque de côte</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">UE/EC concerné(e) *</label>
+                        <select name="ue_ec" class="form-select" required>
+                            <option value="">-- Sélectionner UE/EC --</option>
+                            {% for ue, evals in evaluations_par_ue.items %}
+                                <optgroup label="{{ ue.code_ue }} - {{ ue.intitule_ue }}">
+                                    {% for item in evals %}
+                                    <option value="{{ ue.code_ue }}-{% if item.ec %}{{ item.ec.code_ec }}{% else %}{{ ue.code_ue }}{% endif %}">
+                                        {% if item.ec %}{{ item.ec.code_ec }} - {{ item.ec.intitule_ue }}{% else %}{{ ue.code_ue }} (UE){% endif %} - Note: {{ item.note_finale|floatformat:1 }}/20
+                                    </option>
+                                    {% endfor %}
+                                </optgroup>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Description détaillée *</label>
+                        <textarea name="description" class="form-control" rows="4" required 
+                                  placeholder="Décrivez en détail le problème rencontré..."></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Pièces jointes (preuves)</label>
+                        <input type="file" name="fichiers" class="form-control" multiple 
+                               accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+                        <small class="text-muted">
+                            Vous pouvez joindre plusieurs fichiers (PDF, images, documents). Taille maximale: 10MB par fichier.
+                        </small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Notes actuelles concernées</label>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>UE/EC</th>
+                                        <th>CC</th>
+                                        <th>Examen</th>
+                                        <th>Note finale</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ue, evals in evaluations_par_ue.items %}
+                                        {% for item in evals %}
+                                        <tr>
+                                            <td>{% if item.ec %}{{ item.ec.code_ec }}{% else %}{{ ue.code_ue }}{% endif %}</td>
+                                            <td>{{ item.evaluation.cc }}/20</td>
+                                            <td>{{ item.evaluation.examen }}/20</td>
+                                            <td><strong>{{ item.note_finale|floatformat:1 }}/20</strong></td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-send me-2"></i>Envoyer le Recours
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Recours par Cours -->
+<div class="modal fade" id="modalRecoursCours" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Recours pour <span id="recoursCoursCode"></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" enctype="multipart/form-data" action="{% url 'envoyer_recours' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Un recours permet de signaler une erreur concernant vos notes. Veuillez remplir les informations ci-dessous.
+                    </div>
+                    
+                    <!-- Informations du cours concerné -->
+                    <div class="card bg-light mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title fw-bold">Cours concerné</h6>
+                            <div class="row">
+                                <div class="col-6">
+                                    <strong>UE:</strong> <span id="recoursUE"></span>
+                                </div>
+                                <div class="col-6">
+                                    <strong>EC:</strong> <span id="recoursEC"></span>
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-4">
+                                    <strong>CC:</strong> <span id="recoursCC"></span>/20
+                                </div>
+                                <div class="col-4">
+                                    <strong>Examen:</strong> <span id="recoursExamen"></span>/20
+                                </div>
+                                <div class="col-4">
+                                    <strong>Note finale:</strong> <span id="recoursNoteFinale"></span>/20
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <input type="hidden" name="ue_ec" id="hiddenUEEC">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Objet du recours *</label>
+                        <select name="objet" class="form-select" required>
+                            <option value="">-- Sélectionner l'objet --</option>
+                            <option value="mauvaise_transcription_cc">Mauvaise transcription de CC</option>
+                            <option value="mauvaise_transcription_examen">Mauvaise transcription d'examen</option>
+                            <option value="mauvais_calcul">Mauvais calcul de la note finale</option>
+                            <option value="manque_cote">Manque de côte</option>
+                            <option value="autre">Autre problème</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Description détaillée *</label>
+                        <textarea name="description" class="form-control" rows="4" required 
+                                  placeholder="Décrivez en détail le problème rencontré pour ce cours..."></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Pièces jointes (preuves)</label>
+                        <input type="file" name="fichiers" class="form-control" multiple 
+                               accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+                        <small class="text-muted">
+                            Vous pouvez joindre plusieurs fichiers (PDF, images, documents). Taille maximale: 10MB par fichier.
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-send me-2"></i>Envoyer le Recours
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function preparerRecoursCours(codeUE, codeEC, cc, examen, noteFinale) {
+    // Remplir les informations du cours dans le modal
+    document.getElementById('recoursUE').textContent = codeUE;
+    document.getElementById('recoursEC').textContent = codeEC;
+    document.getElementById('recoursCoursCode').textContent = codeEC;
+    document.getElementById('recoursCC').textContent = cc;
+    document.getElementById('recoursExamen').textContent = examen;
+    document.getElementById('recoursNoteFinale').textContent = noteFinale;
+    
+    // Remplir le champ caché
+    document.getElementById('hiddenUEEC').value = codeUE + '-' + codeEC;
+}
+</script>
+
+{% endblock %}

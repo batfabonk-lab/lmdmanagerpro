@@ -1,0 +1,192 @@
+{% extends 'enseignant/base_enseignant.html' %}
+
+{% block title %}Appréciations - Espace Enseignant{% endblock %}
+{% block page_title %}Appréciations{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="card-body text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0 opacity-75">Total</h6>
+                        <h2 class="mb-0 mt-2">{{ stats.total|default:0 }}</h2>
+                    </div>
+                    <i class="bi bi-clipboard-data display-4 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+            <div class="card-body text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0 opacity-75">Moyenne globale</h6>
+                        <h2 class="mb-0 mt-2">{% if overall %}{{ overall }}{% else %}-{% endif %}/5</h2>
+                    </div>
+                    <i class="bi bi-star-fill display-4 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <div class="card-body text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0 opacity-75">Ponctualité</h6>
+                        <h2 class="mb-0 mt-2">{% if stats.avg_ponctualite %}{{ stats.avg_ponctualite|floatformat:2 }}{% else %}-{% endif %}/5</h2>
+                    </div>
+                    <i class="bi bi-clock-history display-4 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+            <div class="card-body text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0 opacity-75">Disponibilité</h6>
+                        <h2 class="mb-0 mt-2">{% if stats.avg_disponibilite %}{{ stats.avg_disponibilite|floatformat:2 }}{% else %}-{% endif %}/5</h2>
+                    </div>
+                    <i class="bi bi-person-check display-4 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-0 py-3">
+        <h6 class="mb-0"><i class="bi bi-funnel me-2 text-primary"></i>Filtres</h6>
+    </div>
+    <div class="card-body pt-0">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label for="cours-select" class="form-label text-muted small">Cours</label>
+                <select id="cours-select" name="cours" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- Tous les cours --</option>
+                    {% for cours in cours_list %}
+                    <option value="{{ cours.code }}" {% if cours_filter == cours.code %}selected{% endif %}>{{ cours.intitule }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="annee-select" class="form-label text-muted small">Année académique</label>
+                <select id="annee-select" name="annee" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- Toutes les années --</option>
+                    {% for annee in annees %}
+                    <option value="{{ annee.code_anac }}" {% if annee_filter == annee.code_anac %}selected{% endif %}>{{ annee.designation_anac }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% if cours_filter or annee_filter %}
+            <div class="col-md-3">
+                <a href="{% url 'enseignant_appreciations' %}" class="btn btn-outline-danger w-100">
+                    <i class="bi bi-x-circle me-1"></i>Réinitialiser
+                </a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-0 py-3">
+        <h6 class="mb-0"><i class="bi bi-bar-chart me-2 text-info"></i>Graphique des moyennes</h6>
+    </div>
+    <div class="card-body">
+        <canvas id="evaluationChart" width="400" height="200"></canvas>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="bi bi-star me-2 text-warning"></i>Évaluations reçues</h6>
+        <span class="badge bg-warning text-dark">{{ evaluations|length }}</span>
+    </div>
+    <div class="card-body">
+        {% if evaluations %}
+        <div class="list-group list-group-flush">
+            {% for ev in evaluations %}
+            <div class="list-group-item border-0 border-bottom px-0">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="fw-semibold">
+                            {{ ev.attribution.get_intitule }}
+                            <span class="badge bg-light text-dark ms-2">{{ ev.attribution.code_cours }}</span>
+                        </div>
+                        <div class="text-muted small">
+                            <i class="bi bi-calendar3 me-1"></i>{{ ev.annee_academique }}
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <div class="fw-bold">{{ ev.moyenne }}/5</div>
+                        <div class="small text-muted">{{ ev.date_creation|date:"d/m/Y H:i" }}</div>
+                    </div>
+                </div>
+
+                <div class="row g-2 mt-2">
+                    <div class="col-md-2"><span class="badge bg-secondary">Ponc. {{ ev.ponctualite }}</span></div>
+                    <div class="col-md-3"><span class="badge bg-secondary">Maîtrise {{ ev.maitrise_communication }}</span></div>
+                    <div class="col-md-3"><span class="badge bg-secondary">Pédago. {{ ev.pedagogie_methodologie }}</span></div>
+                    <div class="col-md-2"><span class="badge bg-secondary">TIC {{ ev.utilisation_tic }}</span></div>
+                    <div class="col-md-2"><span class="badge bg-secondary">Dispo. {{ ev.disponibilite }}</span></div>
+                </div>
+
+                {% if ev.commentaire %}
+                <div class="mt-2 text-muted" style="white-space: pre-wrap;">{{ ev.commentaire }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-inbox display-1 text-muted opacity-50"></i>
+            <p class="text-muted mt-3 mb-0">Aucune appréciation pour le moment.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js/dist/Chart.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof Chart !== 'undefined') {
+        const ctx = document.getElementById('evaluationChart');
+        if (ctx) {
+            const chartCtx = ctx.getContext('2d');
+            new Chart(chartCtx, {
+                type: 'bar',
+                data: {
+                    labels: JSON.parse({{ chart_data.labels|safe }}),
+                    datasets: [{
+                        label: 'Moyenne /5',
+                        data: JSON.parse({{ chart_data.data|safe }}),
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 5
+                        }
+                    }
+                }
+            });
+        } else {
+            console.log('Canvas not found');
+        }
+    } else {
+        console.log('Chart.js not loaded');
+    }
+});
+</script>

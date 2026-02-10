@@ -1,0 +1,136 @@
+{% extends 'enseignant/base_enseignant.html' %}
+
+{% block title %}Encoder Notes{% endblock %}
+{% block page_title %}Encoder les Notes{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">
+    <i class="bi bi-pencil-square me-2"></i>
+    Encoder les Notes
+</h2>
+
+<div class="card">
+    <div class="card-header">
+        <i class="bi bi-list-check me-2"></i>
+        Liste des Évaluations
+    </div>
+    <div class="card-body">
+        {% if evaluations %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Étudiant</th>
+                        <th>UE</th>
+                        <th>EC</th>
+                        <th>CC</th>
+                        <th>Examen</th>
+                        <th>Rattrapage</th>
+                        <th>Rachat</th>
+                        <th>Statut</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for eval in evaluations %}
+                    <tr>
+                        <td>{{ eval.matricule_et.nom_complet }}</td>
+                        <td>{{ eval.code_ue.intitule_ue }}</td>
+                        <td>{{ eval.code_ec.intitule_ue }}</td>
+                        <td>{{ eval.cc }}/20</td>
+                        <td>{{ eval.examen }}/20</td>
+                        <td>
+                            {% if eval.rattrapage %}
+                                {{ eval.rattrapage }}/20
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if eval.rachat %}
+                                {{ eval.rachat }}/20
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if eval.statut == 'VALIDE' %}
+                                <span class="badge bg-success">Validé</span>
+                            {% elif eval.statut == 'NON_VALIDE' %}
+                                <span class="badge bg-danger">Non validé</span>
+                            {% else %}
+                                <span class="badge bg-warning">En cours</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editModal{{ eval.id_ev }}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    
+                    <!-- Modal pour éditer -->
+                    <div class="modal fade" id="editModal{{ eval.id_ev }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Modifier les notes</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <div class="modal-body">
+                                        <input type="hidden" name="eval_id" value="{{ eval.id_ev }}">
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Étudiant</label>
+                                            <input type="text" class="form-control" value="{{ eval.matricule_et.nom_complet }}" readonly>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">UE / EC</label>
+                                            <input type="text" class="form-control" value="{{ eval.code_ue }} / {{ eval.code_ec }}" readonly>
+                                        </div>
+                                        
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label for="cc{{ eval.id_ev }}" class="form-label">CC (/20)</label>
+                                                <input type="number" step="0.01" min="0" max="20" class="form-control" id="cc{{ eval.id_ev }}" name="cc" value="{{ eval.cc }}" required>
+                                            </div>
+                                            
+                                            <div class="col-md-6 mb-3">
+                                                <label for="examen{{ eval.id_ev }}" class="form-label">Examen (/20)</label>
+                                                <input type="number" step="0.01" min="0" max="20" class="form-control" id="examen{{ eval.id_ev }}" name="examen" value="{{ eval.examen }}" required>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row">
+                                            <div class="col-md-6 mb-3">
+                                                <label for="rattrapage{{ eval.id_ev }}" class="form-label">Rattrapage (/20)</label>
+                                                <input type="number" step="0.01" min="0" max="20" class="form-control" id="rattrapage{{ eval.id_ev }}" name="rattrapage" value="{{ eval.rattrapage|default:'' }}">
+                                            </div>
+                                            
+                                            <div class="col-md-6 mb-3">
+                                                <label for="rachat{{ eval.id_ev }}" class="form-label">Rachat (/20)</label>
+                                                <input type="number" step="0.01" min="0" max="20" class="form-control" id="rachat{{ eval.id_ev }}" name="rachat" value="{{ eval.rachat|default:'' }}">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                        <button type="submit" class="btn btn-primary">Enregistrer</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center mb-0">Aucune évaluation trouvée.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

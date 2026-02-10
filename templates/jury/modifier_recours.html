@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+
+{% block title %}Modifier Recours - {{ recours.code_recours }}{% endblock %}
+
+{% block content %}
+<div class="card mb-4 border-0 shadow-sm">
+    <div class="card-header bg-secondary text-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <i class="bi bi-pencil me-2"></i>
+                <strong>Modifier le Recours</strong> — {{ recours.code_recours }}
+            </div>
+            <a href="{% url 'jury_recours' %}" class="btn btn-sm btn-outline-light">
+                <i class="bi bi-arrow-left me-1"></i>Retour
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Étudiant</label>
+                    <input type="text" class="form-control" value="{{ recours.etudiant.nom_complet }}" disabled>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Code recours</label>
+                    <input type="text" class="form-control" value="{{ recours.code_recours }}" disabled>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold" for="objet">Objet du recours</label>
+                    <select name="objet" id="objet" class="form-select">
+                        <option value="mauvaise_transcription_cc" {% if recours.objet == 'mauvaise_transcription_cc' %}selected{% endif %}>Mauvaise transcription de CC</option>
+                        <option value="mauvaise_transcription_examen" {% if recours.objet == 'mauvaise_transcription_examen' %}selected{% endif %}>Mauvaise transcription d'examen</option>
+                        <option value="mauvais_calcul" {% if recours.objet == 'mauvais_calcul' %}selected{% endif %}>Mauvais calcul de la note finale</option>
+                        <option value="manque_cote" {% if recours.objet == 'manque_cote' %}selected{% endif %}>Manque de côte</option>
+                        <option value="autre" {% if recours.objet == 'autre' %}selected{% endif %}>Autre problème</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold" for="ue_ec_concerne">UE/EC concerné(e)</label>
+                    <select name="ue_ec_concerne" id="ue_ec_concerne" class="form-select">
+                        <option value="">--- Sélectionner ---</option>
+                        {% for item in ue_ec_list %}
+                        <option value="{{ item.code }}" {% if recours.ue_ec_concerne == item.code %}selected{% endif %}>{{ item.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold" for="description">Description</label>
+                <textarea name="description" id="description" class="form-control" rows="3">{{ recours.description }}</textarea>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold" for="statut">Statut</label>
+                    <select name="statut" id="statut" class="form-select">
+                        <option value="EN_ATTENTE" {% if recours.statut == 'EN_ATTENTE' %}selected{% endif %}>En attente</option>
+                        <option value="EN_EXAMEN" {% if recours.statut == 'EN_EXAMEN' %}selected{% endif %}>En cours d'examen</option>
+                        <option value="TRAITE" {% if recours.statut == 'TRAITE' %}selected{% endif %}>Traité</option>
+                        <option value="REJETE" {% if recours.statut == 'REJETE' %}selected{% endif %}>Rejeté</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold" for="decision_finale">Décision finale</label>
+                    <select name="decision_finale" id="decision_finale" class="form-select">
+                        <option value="">---</option>
+                        <option value="ACCEPTE" {% if recours.decision_finale == 'ACCEPTE' %}selected{% endif %}>Accepté</option>
+                        <option value="REJETE" {% if recours.decision_finale == 'REJETE' %}selected{% endif %}>Rejeté</option>
+                        <option value="PARTIELLEMENT_ACCEPTE" {% if recours.decision_finale == 'PARTIELLEMENT_ACCEPTE' %}selected{% endif %}>Partiellement accepté</option>
+                        <option value="SANS_SUITE" {% if recours.decision_finale == 'SANS_SUITE' %}selected{% endif %}>Classé sans suite</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">Date d'envoi</label>
+                    <input type="text" class="form-control" value="{{ recours.date_envoi|date:'d/m/Y H:i' }}" disabled>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold" for="traitement_jury">Traitement du Jury</label>
+                <textarea name="traitement_jury" id="traitement_jury" class="form-control" rows="3">{{ recours.traitement_jury }}</textarea>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-check-lg me-1"></i>Enregistrer
+                </button>
+                <a href="{% url 'jury_recours' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-lg me-1"></i>Annuler
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

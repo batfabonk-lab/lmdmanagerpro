@@ -1,0 +1,262 @@
+{% extends 'base.html' %}
+
+{% block title %}Évaluer {{ cours.code }} - Jury{% endblock %}
+
+{% block content %}
+<!-- En-tête du cours -->
+<div class="card mb-4 border-0 shadow-sm">
+    <div class="card-header bg-warning text-dark">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <i class="bi bi-pencil-square me-2"></i>
+                <strong>{{ cours.intitule }}</strong>
+            </div>
+            <a href="{% url 'jury_grille_cours' %}" class="btn btn-sm btn-outline-dark">
+                <i class="bi bi-arrow-left me-1"></i>Retour à la liste
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-2">
+                <strong>Code Cours:</strong> {{ cours.code }}
+            </div>
+            <div class="col-md-2">
+                <strong>Type:</strong> 
+                <span class="badge {% if cours.type == 'UE' %}bg-info{% else %}bg-success{% endif %}">{{ cours.type }}</span>
+            </div>
+            <div class="col-md-2">
+                <strong>Catégorie:</strong>
+                {% if cours.categorie_label %}
+                    <span class="badge bg-secondary">{{ cours.categorie_label }}</span>
+                {% else %}
+                    <span class="text-muted">-</span>
+                {% endif %}
+            </div>
+            <div class="col-md-2">
+                <strong>Année:</strong> 
+                <span class="badge bg-primary">{{ annee }}</span>
+            </div>
+            <div class="col-md-4">
+                <strong>Enseignant:</strong> 
+                {% if cours.enseignant %}
+                    <span class="text-success">{{ cours.enseignant }}</span>
+                {% else %}
+                    <span class="text-muted">Non attribué</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Grille d'évaluation -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-people me-2"></i>Liste des étudiants ({{ etudiants|length }})</span>
+        <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-info" id="btnToggleRattrapage" onclick="toggleRattrapageColumns()">
+                <i class="bi bi-plus-square me-1"></i>Insérer les rattrapages
+            </button>
+            <button type="button" class="btn btn-sm btn-warning" id="btnToggleEdit" onclick="toggleEditMode()">
+                <i class="bi bi-pencil me-1"></i>Activer la modification
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if etudiants %}
+        <form method="post">
+            {% csrf_token %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 5%;">#</th>
+                            <th style="width: 20%;">Nom complet</th>
+                            <th style="width: 10%;">CC</th>
+                            <th style="width: 10%;">Examen</th>
+                            <th style="width: 10%;">Note Finale</th>
+                            <th style="width: 12%;" class="col-rattrapage" style="display: none;">Rattrapage</th>
+                            <th style="width: 12%;" class="col-rachat" style="display: none;">Rachat</th>
+                            <th style="width: 8%;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for etud in etudiants %}
+                        <tr>
+                            <td class="text-center align-middle">{{ forloop.counter }}</td>
+                            <td class="align-middle">
+                                <strong>{{ etud.nom_complet }}</strong>
+                                <input type="hidden" name="matricule" value="{{ etud.matricule }}">
+                                <br><small class="text-muted">{{ etud.matricule }}</small>
+                            </td>
+                            <td class="text-center align-middle">
+                                <!-- Mode lecture -->
+                                <span class="note-display badge bg-secondary fs-6" role="button" title="Cliquer pour modifier">
+                                    {% if etud.cc %}{{ etud.cc }}{% else %}-{% endif %}
+                                </span>
+                                <!-- Mode édition (caché par défaut) -->
+                                <input type="number" name="cc_{{ etud.matricule }}" class="form-control form-control-sm text-center note-input" 
+                                       value="{{ etud.cc }}" min="0" max="10" step="0.25" placeholder="0-10" style="display: none;" disabled>
+                            </td>
+                            <td class="text-center align-middle">
+                                <!-- Mode lecture -->
+                                <span class="note-display badge bg-secondary fs-6" role="button" title="Cliquer pour modifier">
+                                    {% if etud.examen %}{{ etud.examen }}{% else %}-{% endif %}
+                                </span>
+                                <!-- Mode édition (caché par défaut) -->
+                                <input type="number" name="examen_{{ etud.matricule }}" class="form-control form-control-sm text-center note-input" 
+                                       value="{{ etud.examen }}" min="0" max="10" step="0.25" placeholder="0-10" style="display: none;" disabled>
+                            </td>
+                            <td class="text-center align-middle">
+                                <span class="badge fs-6 {% if etud.note_finale_num and etud.note_finale_num >= 10 %}bg-success{% elif etud.note_finale %}bg-danger{% else %}bg-secondary{% endif %}">
+                                    {% if etud.note_finale %}{{ etud.note_finale }}{% else %}-{% endif %}
+                                </span>
+                            </td>
+                            <td class="text-center align-middle col-rattrapage" style="display: none;">
+                                <!-- Mode lecture -->
+                                <span class="note-display badge bg-info fs-6" role="button" title="Cliquer pour modifier">
+                                    {% if etud.rattrapage %}{{ etud.rattrapage }}{% else %}-{% endif %}
+                                </span>
+                                <!-- Mode édition (caché par défaut) -->
+                                <input type="number" name="rattrapage_{{ etud.matricule }}" class="form-control form-control-sm text-center note-input" 
+                                       value="{{ etud.rattrapage }}" min="0" max="20" step="0.25" placeholder="0-20" style="display: none;">
+                            </td>
+                            <td class="text-center align-middle col-rachat" style="display: none;">
+                                <!-- Mode lecture -->
+                                <span class="note-display badge bg-warning text-dark fs-6" role="button" title="Cliquer pour modifier">
+                                    {% if etud.rachat %}{{ etud.rachat }}{% else %}-{% endif %}
+                                </span>
+                                <!-- Mode édition (caché par défaut) -->
+                                <input type="number" name="rachat_{{ etud.matricule }}" class="form-control form-control-sm text-center note-input" 
+                                       value="{{ etud.rachat }}" min="0" max="20" step="0.25" placeholder="0-20" style="display: none;">
+                            </td>
+                            <td class="text-center align-middle">
+                                {% if etud.evaluation %}
+                                <button type="button" class="btn btn-sm btn-outline-danger note-input" style="display: none;" disabled
+                                        onclick="deleteEvaluation('{{ etud.evaluation.id_ev }}', '{{ etud.nom_complet }}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                <span class="note-display text-muted">-</span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="d-flex justify-content-end mt-3" id="saveButtonContainer" style="display: none;">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="bi bi-save me-2"></i>Enregistrer les notes
+                </button>
+            </div>
+        </form>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-person-x display-1 text-muted"></i>
+            <p class="text-muted mt-3">Aucun étudiant inscrit pour ce cours cette année.</p>
+            <a href="{% url 'jury_grille_cours' %}" class="btn btn-primary">
+                <i class="bi bi-arrow-left me-1"></i>Retour à la liste
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Formulaire de suppression caché -->
+<form id="deleteForm" method="post" style="display: none;">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="delete">
+    <input type="hidden" name="eval_id" id="deleteEvalId">
+</form>
+
+<!-- Info sur les champs -->
+<div class="alert alert-info mt-3">
+    <i class="bi bi-info-circle me-2"></i>
+    <strong>Note:</strong> En tant que jury, vous pouvez modifier toutes les notes (CC, Examen, Rattrapage, Rachat) et supprimer des évaluations.
+</div>
+
+<script>
+var editMode = false;
+var rattrapageVisible = false;
+
+function toggleEditMode() {
+    editMode = !editMode;
+    var saveBtn = document.getElementById('saveButtonContainer');
+    var toggleBtn = document.getElementById('btnToggleEdit');
+    
+    if (editMode) {
+        // Activer le mode édition (édition au clic)
+        saveBtn.style.display = 'flex';
+        toggleBtn.innerHTML = '<i class="bi bi-eye me-1"></i>Mode lecture';
+        toggleBtn.classList.remove('btn-warning');
+        toggleBtn.classList.add('btn-success');
+    } else {
+        // Revenir au mode lecture
+        document.querySelectorAll('.note-input').forEach(function(input) {
+            input.style.display = 'none';
+            input.disabled = true;
+        });
+        document.querySelectorAll('.note-display').forEach(function(span) {
+            span.style.display = '';
+        });
+        saveBtn.style.display = 'none';
+        toggleBtn.innerHTML = '<i class="bi bi-pencil me-1"></i>Activer la modification';
+        toggleBtn.classList.remove('btn-success');
+        toggleBtn.classList.add('btn-warning');
+    }
+}
+
+function toggleRattrapageColumns() {
+    rattrapageVisible = !rattrapageVisible;
+    document.querySelectorAll('.col-rattrapage, .col-rachat').forEach(function(el) {
+        el.style.display = rattrapageVisible ? '' : 'none';
+    });
+}
+
+// Permet d'éditer seulement la cellule cliquée
+document.addEventListener('click', function(e) {
+    if (!editMode) return;
+    
+    var display = e.target.closest('.note-display');
+    if (!display) return;
+
+    var cell = display.closest('td');
+    if (!cell) return;
+    
+    // Vérifier que la cellule n'est pas cachée (colonnes rattrapage/rachat)
+    if (cell.style.display === 'none') return;
+    
+    var input = cell.querySelector('input.note-input');
+    if (!input) return;
+
+    display.style.display = 'none';
+    input.disabled = false;
+    input.style.display = '';
+    input.focus();
+    input.select();
+});
+
+document.addEventListener('focusout', function(e) {
+    var input = e.target;
+    if (!input.classList || !input.classList.contains('note-input')) return;
+    if (!editMode) return;
+
+    var cell = input.closest('td');
+    if (!cell) return;
+    var display = cell.querySelector('.note-display');
+    if (!display) return;
+
+    input.style.display = 'none';
+    display.style.display = '';
+}, true);
+
+function deleteEvaluation(evalId, nomEtudiant) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer l\'évaluation de ' + nomEtudiant + ' ?')) {
+        document.getElementById('deleteEvalId').value = evalId;
+        document.getElementById('deleteForm').submit();
+    }
+}
+</script>
+{% endblock %}

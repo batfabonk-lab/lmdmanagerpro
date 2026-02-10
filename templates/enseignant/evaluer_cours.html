@@ -1,0 +1,250 @@
+{% extends 'enseignant/base_enseignant.html' %}
+
+{% block title %}Évaluer {{ cours.code }} - Espace Enseignant{% endblock %}
+{% block page_title %}Évaluer : {{ cours.intitule }}{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <strong>Code Cours:</strong> {{ cours.code }}
+            </div>
+            <div class="col-md-4">
+                <strong>Intitulé:</strong> {{ cours.intitule }}
+            </div>
+            <div class="col-md-2">
+                <strong>Type:</strong> 
+                <span class="badge {% if cours.type == 'UE' %}bg-info{% else %}bg-success{% endif %}">{{ cours.type }}</span>
+            </div>
+            <div class="col-md-3">
+                <strong>Année:</strong> 
+                <span class="badge bg-primary">{{ annee }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if envoye_au_jury %}
+<div class="alert alert-success d-flex align-items-center mb-4" role="alert">
+    <i class="bi bi-lock-fill fs-4 me-3"></i>
+    <div>
+        <strong>Notes envoyées au jury.</strong> Aucune modification n'est possible.
+        {% if date_envoi_jury %}
+        <br><small class="text-muted">Envoyées le {{ date_envoi_jury|date:"d/m/Y à H:i" }}</small>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-people me-2"></i>Liste des étudiants à évaluer ({{ etudiants|length }})</span>
+        <div>
+            {% if not envoye_au_jury %}
+            <a href="{% url 'telecharger_grille_evaluation' code_cours=cours.code annee=annee %}" class="btn btn-success btn-sm me-2">
+                <i class="bi bi-download me-1"></i>Télécharger Excel
+            </a>
+            <button type="button" class="btn btn-warning btn-sm me-2" data-bs-toggle="modal" data-bs-target="#importModal">
+                <i class="bi bi-upload me-1"></i>Importer Excel
+            </button>
+            {% endif %}
+            <a href="{% url 'enseignant_mes_cours' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Retour
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if etudiants %}
+        <form method="post">
+            {% csrf_token %}
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 5%;">#</th>
+                            <th style="width: 28%;">Nom complet</th>
+                            <th style="width: 12%;">CC</th>
+                            <th style="width: 12%;">Examen</th>
+                            <th style="width: 13%;">Note Finale</th>
+                            <th style="width: 15%;">Rattrapage</th>
+                            <th style="width: 15%;">Rachat</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for etud in etudiants %}
+                        <tr>
+                            <td class="text-center align-middle">{{ forloop.counter }}</td>
+                            <td class="align-middle">
+                                <strong>{{ etud.nom_complet }}</strong>
+                                <input type="hidden" name="matricule" value="{{ etud.matricule }}">
+                                <br><small class="text-muted">{{ etud.matricule }}</small>
+                            </td>
+                            <td>
+                                {% if etud.cc %}
+                                <input type="hidden" name="cc" value="{{ etud.cc }}">
+                                <span class="badge bg-secondary fs-6">{{ etud.cc|floatformat:1 }}</span>
+                                {% else %}
+                                <input type="number" name="cc" class="form-control form-control-sm text-center cc-input" 
+                                       value="" min="0" max="10" step="0.25" placeholder="0-10" data-row="{{ forloop.counter }}" {% if envoye_au_jury %}disabled{% endif %}>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if etud.examen %}
+                                <input type="hidden" name="examen" value="{{ etud.examen }}">
+                                <span class="badge bg-secondary fs-6">{{ etud.examen|floatformat:1 }}</span>
+                                {% else %}
+                                <input type="number" name="examen" class="form-control form-control-sm text-center examen-input" 
+                                       value="" min="0" max="10" step="0.25" placeholder="0-10" data-row="{{ forloop.counter }}" {% if envoye_au_jury %}disabled{% endif %}>
+                                {% endif %}
+                            </td>
+                            <td class="text-center align-middle">
+                                <span class="badge bg-primary fs-6 note-finale" id="note-finale-{{ forloop.counter }}">
+                                    {% if etud.cc and etud.examen %}{{ etud.cc|add:etud.examen|floatformat:1 }}{% else %}-{% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                <input type="number" name="rattrapage" class="form-control form-control-sm text-center" 
+                                       value="{{ etud.rattrapage }}" min="0" max="20" step="0.25" placeholder="0-20" {% if not rattrapage_actif or envoye_au_jury %}disabled{% endif %}>
+                            </td>
+                            <td>
+                                <input type="number" name="rachat" class="form-control form-control-sm text-center" 
+                                       value="{{ etud.rachat }}" min="0" max="20" step="0.25" placeholder="0-20" {% if not rachat_actif or envoye_au_jury %}disabled{% endif %}>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if not envoye_au_jury %}
+            <div class="d-flex justify-content-between mt-3">
+                <button type="button" class="btn btn-danger btn-lg" data-bs-toggle="modal" data-bs-target="#envoyerJuryModal">
+                    <i class="bi bi-send me-2"></i>Envoyer au jury
+                </button>
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="bi bi-save me-2"></i>Enregistrer les notes
+                </button>
+            </div>
+            {% endif %}
+        </form>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-person-x display-1 text-muted"></i>
+            <p class="text-muted mt-3">Aucun étudiant inscrit pour ce cours cette année.</p>
+            <a href="{% url 'enseignant_mes_cours' %}" class="btn btn-primary">
+                <i class="bi bi-arrow-left me-1"></i>Retour aux cours
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Calculer la note finale en temps réel
+    function calculerNoteFinale(row) {
+        const ccInput = document.querySelector('.cc-input[data-row="' + row + '"]');
+        const examenInput = document.querySelector('.examen-input[data-row="' + row + '"]');
+        const noteFinaleSpan = document.getElementById('note-finale-' + row);
+        
+        const cc = parseFloat(ccInput.value) || 0;
+        const examen = parseFloat(examenInput.value) || 0;
+        
+        if (ccInput.value && examenInput.value) {
+            const noteFinale = cc + examen;
+            noteFinaleSpan.textContent = noteFinale.toFixed(2);
+            noteFinaleSpan.className = 'badge fs-6 ' + (noteFinale >= 10 ? 'bg-success' : 'bg-danger');
+        } else {
+            noteFinaleSpan.textContent = '-';
+            noteFinaleSpan.className = 'badge bg-primary fs-6';
+        }
+    }
+    
+    // Ajouter les événements sur les inputs CC et Examen
+    document.querySelectorAll('.cc-input, .examen-input').forEach(function(input) {
+        input.addEventListener('input', function() {
+            calculerNoteFinale(this.dataset.row);
+        });
+    });
+    
+    // Calculer au chargement
+    document.querySelectorAll('.cc-input').forEach(function(input) {
+        calculerNoteFinale(input.dataset.row);
+    });
+});
+</script>
+
+<!-- Modal Import Excel -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="importModalLabel">
+                    <i class="bi bi-upload me-2"></i>Importer les notes depuis Excel
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'importer_grille_evaluation' code_cours=cours.code annee=annee %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Instructions :</strong>
+                        <ol class="mb-0 mt-2">
+                            <li>Téléchargez d'abord le modèle Excel</li>
+                            <li>Remplissez les notes dans le fichier</li>
+                            <li>Importez le fichier complété ici</li>
+                        </ol>
+                    </div>
+                    <div class="mb-3">
+                        <label for="fichier_excel" class="form-label">Fichier Excel (.xlsx)</label>
+                        <input type="file" class="form-control" id="fichier_excel" name="fichier_excel" accept=".xlsx,.xls" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-upload me-1"></i>Importer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmation Envoi au Jury -->
+<div class="modal fade" id="envoyerJuryModal" tabindex="-1" aria-labelledby="envoyerJuryModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="envoyerJuryModalLabel">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Confirmer l'envoi au jury
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <strong>Attention !</strong> Cette action est irréversible.
+                </div>
+                <p>En envoyant les notes au jury :</p>
+                <ul>
+                    <li>Vous <strong>ne pourrez plus modifier</strong> les notes de ce cours</li>
+                    <li>Les notes seront visibles par le jury pour délibération</li>
+                    <li>L'import Excel sera désactivé</li>
+                </ul>
+                <p class="mb-0"><strong>Êtes-vous sûr de vouloir continuer ?</strong></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form method="post" action="{% url 'envoyer_au_jury' code_cours=cours.code annee=annee %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-send me-1"></i>Confirmer l'envoi
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

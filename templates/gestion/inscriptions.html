@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestion des Inscriptions{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-end mb-4">
+    <div>
+        <a href="{% url 'import_inscriptions' %}" class="btn btn-success me-2">
+            <i class="bi bi-file-earmark-excel me-2"></i>Importer Excel
+        </a>
+        <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#addModal">
+            <i class="bi bi-plus-circle me-2"></i>Ajouter
+        </button>
+        {% if user.role != 'GESTIONNAIRE' %}
+        <a href="{% url 'supprimer_tout_inscriptions' %}" class="btn btn-danger">
+            <i class="bi bi-trash me-2"></i>Supprimer tout
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h6 class="card-title">Total Inscriptions</h6>
+                <h2 class="mb-0">{{ inscriptions.count }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtres -->
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-md-3">
+                <select name="classe" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- Toutes les classes --</option>
+                    {% for classe in classes %}
+                    <option value="{{ classe.code_classe }}" {% if classe_filter == classe.code_classe %}selected{% endif %}>
+                        {{ classe.code_classe }} - {{ classe.designation_classe }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="annee" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- Toutes les années --</option>
+                    {% for annee in annees %}
+                    <option value="{{ annee.code_anac }}" {% if annee_filter == annee.code_anac %}selected{% endif %}>
+                        {{ annee.designation_anac }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% if classe_filter or annee_filter %}
+            <div class="col-md-2">
+                <a href="{% url 'gestion_inscriptions' %}" class="btn btn-outline-secondary w-100">
+                    <i class="bi bi-x me-1"></i>Réinitialiser
+                </a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><i class="bi bi-table me-2"></i>Liste des Inscriptions</div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Code Inscription</th>
+                        <th>Année Académique</th>
+                        <th>Étudiant</th>
+                        <th>Classe</th>
+                        <th>Cohorte</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inscription in inscriptions %}
+                    <tr>
+                        <td><strong>{{ inscription.code_inscription }}</strong></td>
+                        <td><span class="badge bg-info">{{ inscription.annee_academique }}</span></td>
+                        <td>{{ inscription.matricule_etudiant.nom_complet }}</td>
+                        <td><span class="badge bg-secondary">{{ inscription.code_classe }}</span></td>
+                        <td>
+                            {% if inscription.cohorte %}
+                                <span class="badge bg-warning text-dark">{{ inscription.cohorte.code_cohorte }}</span>
+                            {% else %}
+                                <span class="text-muted">Non assignée</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'voir_inscription' inscription.code_inscription %}" class="btn btn-sm btn-info" title="Voir détails">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'modifier_inscription' inscription.code_inscription %}" class="btn btn-sm btn-warning" title="Modifier">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'supprimer_inscription' inscription.code_inscription %}" class="btn btn-sm btn-danger" title="Supprimer">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted">Aucune inscription trouvée</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Ajouter une Inscription</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Code Inscription *</label>
+                        {{ form.code_inscription }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Année Académique *</label>
+                        {{ form.annee_academique }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Étudiant *</label>
+                        {{ form.matricule_etudiant }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Classe *</label>
+                        {{ form.code_classe }}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Cohorte</label>
+                        {{ form.cohorte }}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-save me-2"></i>Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

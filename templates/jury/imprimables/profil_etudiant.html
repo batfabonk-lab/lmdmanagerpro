@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Profil Détaillé - {{ etudiant.matricule_et }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            body { margin: 0; font-size: 11px; }
+            .page-break { page-break-before: always; }
+        }
+        .header-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .stat-card {
+            border-radius: 10px;
+            text-align: center;
+            padding: 15px;
+        }
+        .semester-header {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            border-radius: 8px 8px 0 0;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container my-4">
+        <!-- Actions (non imprimables) -->
+        <div class="d-flex justify-content-between align-items-start no-print mb-3">
+            <a class="btn btn-outline-secondary btn-sm" href="javascript:history.back()">
+                <i class="bi bi-arrow-left me-1"></i>Retour
+            </a>
+            <button class="btn btn-primary btn-sm" onclick="window.print()">
+                <i class="bi bi-printer me-1"></i>Imprimer
+            </button>
+        </div>
+
+        <!-- En-tête du profil -->
+        <div class="card mb-4">
+            <div class="card-header header-gradient">
+                <h3 class="mb-0">
+                    <i class="bi bi-person-badge me-2"></i>
+                    Profil Détaillé de l'Étudiant
+                </h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Photo et infos principales -->
+                    <div class="col-md-3 text-center mb-3">
+                        {% if etudiant.photo %}
+                        <img src="{{ etudiant.photo.url }}" alt="Photo" class="img-thumbnail mb-2" style="max-width: 150px; max-height: 180px;">
+                        {% else %}
+                        <div class="bg-secondary text-white rounded d-flex align-items-center justify-content-center mx-auto mb-2" style="width: 150px; height: 180px;">
+                            <i class="bi bi-person-fill" style="font-size: 80px;"></i>
+                        </div>
+                        {% endif %}
+                        <h5 class="mb-1">{{ etudiant.nom_complet }}</h5>
+                        <span class="badge bg-primary fs-6">{{ etudiant.matricule_et }}</span>
+                    </div>
+                    
+                    <!-- Informations personnelles -->
+                    <div class="col-md-5">
+                        <h6 class="text-muted mb-3"><i class="bi bi-info-circle me-1"></i>Informations Personnelles</h6>
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <td class="text-muted" style="width: 40%;">Sexe</td>
+                                <td><strong>{{ etudiant.get_sexe_display|default:"-" }}</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Date de naissance</td>
+                                <td><strong>{{ etudiant.date_naiss|date:"d/m/Y"|default:"-" }}</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Nationalité</td>
+                                <td><strong>{{ etudiant.nationalite|default:"-" }}</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Téléphone</td>
+                                <td><strong>{{ etudiant.telephone|default:"-" }}</strong></td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <!-- Informations académiques -->
+                    <div class="col-md-4">
+                        <h6 class="text-muted mb-3"><i class="bi bi-mortarboard me-1"></i>Situation Académique</h6>
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <td class="text-muted" style="width: 45%;">Classe actuelle</td>
+                                <td><strong>{{ classe.code_classe }}</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Année académique</td>
+                                <td><strong>{{ annee|default:"-" }}</strong></td>
+                            </tr>
+                            {% if inscription_courante and inscription_courante.cohorte %}
+                            <tr>
+                                <td class="text-muted">Cohorte</td>
+                                <td><strong>{{ inscription_courante.cohorte }}</strong></td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <td class="text-muted">Date d'édition</td>
+                                <td><strong>{{ date|date:"d/m/Y" }}</strong></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Résumé des résultats -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card stat-card bg-primary text-white h-100">
+                    <div class="fs-2 fw-bold">{{ moyenne_generale|floatformat:1 }}/20</div>
+                    <div class="small">Moyenne Générale</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card {% if decision_code == 'ADM' or decision_code == 'COMP' %}bg-success{% elif decision_code == 'DEF' %}bg-secondary{% else %}bg-danger{% endif %} text-white h-100">
+                    <div class="fs-2 fw-bold">{{ decision }}</div>
+                    <div class="small">Décision</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card bg-info text-white h-100">
+                    <div class="fs-2 fw-bold">{{ total_credits_valides }}/{{ total_credits }}</div>
+                    <div class="small">Crédits Validés</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card bg-warning text-dark h-100">
+                    <div class="fs-2 fw-bold">{% if taux_reussite is not None %}{{ taux_reussite|floatformat:1 }}%{% endif %}</div>
+                    <div class="small">Taux de Réussite</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Historique des inscriptions -->
+        {% if inscriptions %}
+        <div class="card mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Historique des Inscriptions</h5>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Année Académique</th>
+                            <th>Classe</th>
+                            <th>Cohorte</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ins in inscriptions %}
+                        <tr {% if ins == inscription_courante %}class="table-active"{% endif %}>
+                            <td>
+                                {{ ins.annee_academique }}
+                                {% if ins == inscription_courante %}<span class="badge bg-primary ms-1">Actuelle</span>{% endif %}
+                            </td>
+                            <td>{{ ins.code_classe }}</td>
+                            <td>{{ ins.cohorte|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Détail par semestre -->
+        {% for sem in semestres %}
+        <div class="card mb-4">
+            <div class="card-header semester-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-calendar3 me-2"></i>
+                    Semestre {{ sem.semestre }}
+                </h5>
+                <div>
+                    <span class="badge bg-light text-dark me-2">Moyenne: {% if sem.moyenne is not None %}{{ sem.moyenne|floatformat:1 }}{% endif %}/20</span>
+                    <span class="badge bg-light text-dark">Crédits: {{ sem.credits_valides }}/{{ sem.credits_total }}</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 12%;">Code</th>
+                            <th style="width: 30%;">Unité d'enseignement</th>
+                            <th style="width: 26%;">Éléments constitutifs</th>
+                            <th style="width: 8%;" class="text-center">Crédits</th>
+                            <th style="width: 8%;" class="text-center">Moy.</th>
+                            <th style="width: 9%;" class="text-center">Session</th>
+                            <th style="width: 9%;" class="text-center">Rattrapage</th>
+                            <th style="width: 10%;" class="text-center">État</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cours in sem.lignes %}
+                        <tr>
+                            <td><code>{{ cours.code }}</code></td>
+                            <td>{{ cours.intitule }}</td>
+                            <td>
+                                {% for e in cours.elements %}
+                                    {{ e }}{% if not forloop.last %}<br>{% endif %}
+                                {% endfor %}
+                            </td>
+                            <td class="text-center">{% if cours.credit is not None %}{{ cours.credit }}{% endif %}</td>
+                            <td class="text-center">{% if cours.moy is not None %}{{ cours.moy|floatformat:1 }}{% endif %}</td>
+                            <td class="text-center">{% if cours.session_nf is not None %}{{ cours.session_nf|floatformat:1 }}{% endif %}</td>
+                            <td class="text-center">{% if cours.rattr_nf is not None %}{{ cours.rattr_nf|floatformat:1 }}{% endif %}</td>
+                            <td class="text-center">{{ cours.etat }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-3">Aucune UE pour ce semestre</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+
+        <!-- Section Dettes (informatif) -->
+        {% if dettes %}
+        <div class="card mb-4 border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Dettes à reprendre (UE/EC non validées - informatif)
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-bordered mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Code UE/EC</th>
+                            <th>Intitulé</th>
+                            <th class="text-center">Classe d'origine</th>
+                            <th class="text-center">Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dette in dettes %}
+                        <tr>
+                            <td><code>{% if dette.code_ec %}{{ dette.code_ec.code_ec }}{% else %}{{ dette.code_ue.code_ue }}{% endif %}</code></td>
+                            <td>{% if dette.code_ec %}{{ dette.code_ec.intitule_ue }}{% else %}{{ dette.code_ue.intitule_ue }}{% endif %}</td>
+                            <td class="text-center">{{ dette.code_classe.code_classe }}</td>
+                            <td class="text-center"><span class="badge bg-warning text-dark">Dette compensée</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Signatures -->
+        <div class="row mt-5">
+            <div class="col-4 text-center">
+                <div class="border-top pt-3">
+                    <strong>Le Président du Jury</strong>
+                </div>
+            </div>
+            <div class="col-4 text-center">
+                <div class="border-top pt-3">
+                    <strong>Le Secrétaire</strong>
+                </div>
+            </div>
+            <div class="col-4 text-center">
+                <div class="border-top pt-3">
+                    <strong>Le Directeur des Études</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

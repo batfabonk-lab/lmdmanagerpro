@@ -1,0 +1,535 @@
+{% extends 'base.html' %}
+
+{% block title %}Attribuer Cours{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Sidebar Filtres -->
+        <div class="col-md-3">
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="bi bi-funnel me-2"></i>Filtres</h6>
+                </div>
+                <div class="card-body">
+                    <form method="get" id="filterForm">
+                        <!-- Sélectionner un enseignant -->
+                        <div class="mb-3">
+                            <select name="enseignant" id="sidebarEnseignant" class="form-select" onchange="updateSidebarMatricule(); document.getElementById('filterForm').submit()">
+                                <option value="">-- Sélectionner enseignant --</option>
+                                {% for enseignant in enseignants %}
+                                <option value="{{ enseignant.matricule_en }}" data-nom="{{ enseignant.nom_complet }}" {% if enseignant_filter == enseignant.matricule_en %}selected{% endif %}>
+                                    {{ enseignant.nom_complet }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <!-- Matricule enseignant sélectionné -->
+                        <div class="mb-3">
+                            <div id="matriculeEnseignantFilter" class="form-control bg-light text-muted text-center">
+                                {% if enseignant_filter %}{{ enseignant_filter }}{% else %}-- Matricule --{% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Grade enseignant sélectionné -->
+                        <div class="mb-3">
+                            <div id="gradeEnseignantFilter" class="form-control bg-light text-muted text-center">
+                                {% if enseignant_selectionne and enseignant_selectionne.grade %}{{ enseignant_selectionne.grade.designation_grade }}{% else %}-- Grade --{% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Année académique en cours -->
+                        <div class="mb-3">
+                            <div class="form-control bg-light text-muted text-center">
+                                {{ annee_en_cours.designation_anac|default:"Aucune année active" }}
+                            </div>
+                        </div>
+                        
+                        <!-- Type de charge -->
+                        <div class="mb-3">
+                            <select name="type_charge" id="sidebarTypeCharge" class="form-select">
+                                <option value="">-- Type de charge --</option>
+                                {% for type in types_charge %}
+                                <option value="{{ type.code_type }}" data-designation="{{ type.designation_typecharge }}" {% if type_charge_filter == type.code_type %}selected{% endif %}>
+                                    {{ type.designation_typecharge }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                    </form>
+                    
+                    <hr>
+                    
+                    <!-- Boutons d'action -->
+                    <div class="d-flex gap-2 mb-2">
+                        <button type="button" class="btn btn-danger flex-fill" data-bs-toggle="modal" data-bs-target="#modalViderUE">
+                            <i class="bi bi-trash me-1"></i>Vider
+                        </button>
+                        <button type="button" class="btn btn-info flex-fill" data-bs-toggle="modal" data-bs-target="#modalMigrerUE">
+                            <i class="bi bi-arrow-left-right me-1"></i>Migrer
+                        </button>
+                    </div>
+                    <button type="button" class="btn btn-success w-100 mb-2" data-bs-toggle="modal" data-bs-target="#modalAttribuer">
+                        <i class="bi bi-plus-circle me-2"></i>Attribuer
+                    </button>
+                    <a href="{% url 'liste_attributions' %}" class="btn btn-primary w-100">
+                        <i class="bi bi-list-check me-2"></i>Voir Attributions
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Contenu principal -->
+        <div class="col-md-9">
+
+            <!-- Statistiques -->
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <div class="card text-white" style="background-color: #007bff;">
+                        <div class="card-body text-center py-2">
+                            <small>Cours sélectionnés</small>
+                            <h4 class="mb-0"><span id="selectedCount">0</span> / {{ total_cours }}</h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card text-white" style="background-color: #28a745;">
+                        <div class="card-body text-center py-2">
+                            <small>Crédits sélectionnés</small>
+                            <h4 class="mb-0"><span id="selectedCredits">0</span> / {{ total_credits }}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Barre de recherche et filtre UE/EC -->
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" placeholder="Rechercher..." id="searchInput">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <select class="form-select" id="filterUeEc" onchange="filterByUeEc()">
+                            <option value="">-- Sélectionner UE/EC --</option>
+                            <optgroup label="Unités d'Enseignement (UE)">
+                                {% for ue in ues %}
+                                <option value="{{ ue.code_ue }}" data-type="UE" data-intitule="{{ ue.intitule_ue }}" data-credit="{{ ue.credit }}" data-semestre="{{ ue.semestre }}" data-classe="{{ ue.classe.code_classe|default:'' }}">{{ ue.code_ue }} - {{ ue.intitule_ue }} - {{ ue.classe.code_classe|default:"-" }} - S{{ ue.semestre }}</option>
+                                {% endfor %}
+                            </optgroup>
+                            <optgroup label="Éléments Constitutifs (EC)">
+                                {% for ec in ecs %}
+                                <option value="{{ ec.code_ec }}" data-type="EC" data-intitule="{{ ec.intitule_ue }}" data-credit="{{ ec.credit }}" data-semestre="{{ ec.code_ue.semestre }}" data-classe="{{ ec.classe.code_classe|default:'' }}" data-ue-parent="{{ ec.code_ue.code_ue }}">{{ ec.code_ec }} - {{ ec.intitule_ue }} - {{ ec.classe.code_classe|default:"-" }} - S{{ ec.code_ue.semestre }}</option>
+                                {% endfor %}
+                            </optgroup>
+                        </select>
+                        <button type="button" class="btn btn-success" onclick="ajouterCours()" title="Ajouter à la liste">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tableau des cours pour attribution -->
+            <div class="card">
+                <div class="card-body p-0">
+            {% if cours_attribution %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm mb-0" id="coursTable">
+                    <thead style="background-color: #1e2a3a; color: white;">
+                        <tr>
+                            <th><input type="checkbox" class="form-check-input" id="checkAll"></th>
+                            <th>Code</th>
+                            <th>Intitulé</th>
+                            <th>UE Parent</th>
+                            <th>Crédits</th>
+                            <th>Sem</th>
+                            <th>Classe</th>
+                            <th>Type</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cours in cours_attribution %}
+                        <tr data-credit="{{ cours.credit }}">
+                            <td><input type="checkbox" class="form-check-input row-check" value="{{ cours.code_cours }}"></td>
+                            <td><strong>{{ cours.code_cours }}</strong></td>
+                            <td>{{ cours.intitule }}</td>
+                            <td>{{ cours.code_ue_parent|default:"-" }}</td>
+                            <td>{{ cours.credit }}</td>
+                            <td>{{ cours.semestre }}</td>
+                            <td>{{ cours.classe.code_classe|default:"-" }}</td>
+                            <td>
+                                {% if cours.type_cours == 'UE' %}
+                                <span class="badge bg-primary">UE</span>
+                                {% else %}
+                                <span class="badge bg-success">EC</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="#" 
+                                   class="btn btn-sm btn-outline-danger"
+                                   title="Supprimer ce cours"
+                                   onclick="if(confirm('Supprimer ce cours de la liste ?')) { supprimerCours('{{ cours.code_cours }}'); } else { return false; }">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-warning m-3">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Aucun cours disponible. Cliquez sur <strong>"Migrer"</strong> pour importer les UE et EC.
+            </div>
+            {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Attribuer -->
+<div class="modal fade" id="modalAttribuer" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Confirmer Attribution</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'attribuer_cours' %}" id="formAttribuer">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Vous allez attribuer <strong><span id="nbCoursModal">0</span> cours</strong> à l'enseignant sélectionné.
+                    </div>
+                    
+                    <table class="table table-sm">
+                        <tr>
+                            <td><strong>Enseignant :</strong></td>
+                            <td id="enseignantModal">--</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Matricule :</strong></td>
+                            <td id="matriculeModal">--</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Type Charge :</strong></td>
+                            <td id="typeChargeModal">--</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Année :</strong></td>
+                            <td>{{ annee_en_cours.designation_anac|default:"--" }}</td>
+                        </tr>
+                    </table>
+                    
+                    <input type="hidden" name="matricule_en" id="hiddenMatricule">
+                    <input type="hidden" name="type_charge" id="hiddenTypeCharge">
+                    <input type="hidden" name="annee_academique" value="{{ annee_en_cours.code_anac }}">
+                    <div id="hiddenCoursContainer"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success" id="btnConfirmAttribuer">
+                        <i class="bi bi-check-circle me-1"></i>Confirmer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Mettre à jour le matricule dans le sidebar
+function updateSidebarMatricule() {
+    const select = document.getElementById('sidebarEnseignant');
+    const matriculeDisplay = document.getElementById('matriculeEnseignantFilter');
+    const selectedOption = select.options[select.selectedIndex];
+    
+    if (selectedOption && selectedOption.value) {
+        matriculeDisplay.textContent = selectedOption.value;
+    } else {
+        matriculeDisplay.textContent = '-- Matricule --';
+    }
+}
+
+// Préparer le modal d'attribution avant ouverture
+document.getElementById('modalAttribuer').addEventListener('show.bs.modal', function() {
+    const enseignantSelect = document.getElementById('sidebarEnseignant');
+    const typeChargeSelect = document.getElementById('sidebarTypeCharge');
+    const checkedCours = document.querySelectorAll('.row-check:checked');
+    
+    // Récupérer les valeurs du sidebar
+    const enseignantOption = enseignantSelect.options[enseignantSelect.selectedIndex];
+    const typeChargeOption = typeChargeSelect.options[typeChargeSelect.selectedIndex];
+    
+    const matricule = enseignantSelect.value;
+    const nomEnseignant = enseignantOption ? enseignantOption.dataset.nom || enseignantOption.text : '--';
+    const typeChargeCode = typeChargeSelect.value;
+    const typeChargeDesignation = typeChargeOption ? typeChargeOption.dataset.designation || typeChargeOption.text : '--';
+    
+    // Mettre à jour l'affichage dans le modal
+    document.getElementById('enseignantModal').textContent = nomEnseignant;
+    document.getElementById('matriculeModal').textContent = matricule || '--';
+    document.getElementById('typeChargeModal').textContent = typeChargeDesignation;
+    document.getElementById('nbCoursModal').textContent = checkedCours.length;
+    
+    // Mettre à jour les champs cachés
+    document.getElementById('hiddenMatricule').value = matricule;
+    document.getElementById('hiddenTypeCharge').value = typeChargeCode;
+    
+    // Ajouter les cours cochés comme champs cachés
+    const container = document.getElementById('hiddenCoursContainer');
+    container.innerHTML = '';
+    checkedCours.forEach(cb => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'cours[]';
+        input.value = cb.value;
+        container.appendChild(input);
+    });
+    
+    // Désactiver le bouton si pas d'enseignant ou pas de cours
+    const btnConfirm = document.getElementById('btnConfirmAttribuer');
+    if (!matricule || checkedCours.length === 0) {
+        btnConfirm.disabled = true;
+    } else {
+        btnConfirm.disabled = false;
+    }
+});
+</script>
+
+<!-- Modal Vider UE -->
+<div class="modal fade" id="modalViderUE" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-trash me-2"></i>Vider la table</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'vider_cours_attribution' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Attention !</strong> Cette action va supprimer tous les cours de la table.
+                    </div>
+                    <p>Êtes-vous sûr de vouloir vider la table <strong>cours_attribution</strong> ?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash me-1"></i>Vider
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Migrer UE -->
+<div class="modal fade" id="modalMigrerUE" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="bi bi-arrow-left-right me-2"></i>Migrer UE/EC</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'migrer_ue_ec' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Cette action va :</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Copier les <strong>UE sans EC</strong> dans la table cours_attribution</li>
+                            <li>Copier <strong>tous les EC</strong> dans la table cours_attribution</li>
+                        </ul>
+                    </div>
+                    <p class="text-warning">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        <small>La table cours_attribution sera vidée avant la migration.</small>
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-info">
+                        <i class="bi bi-arrow-left-right me-1"></i>Migrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .btn-purple {
+        background-color: #6f42c1;
+        border-color: #6f42c1;
+    }
+    .btn-purple:hover {
+        background-color: #5a32a3;
+        border-color: #5a32a3;
+    }
+    .bg-purple {
+        background-color: #6f42c1 !important;
+    }
+</style>
+
+<script>
+// Fonction pour mettre à jour les compteurs
+function updateCounters() {
+    const checkboxes = document.querySelectorAll('.row-check:checked');
+    let totalCredits = 0;
+    
+    checkboxes.forEach(cb => {
+        const row = cb.closest('tr');
+        if (row && row.style.display !== 'none') {
+            const credit = parseInt(row.dataset.credit) || 0;
+            totalCredits += credit;
+        }
+    });
+    
+    document.getElementById('selectedCount').textContent = checkboxes.length;
+    document.getElementById('selectedCredits').textContent = totalCredits;
+}
+
+// Recherche dans le tableau
+document.getElementById('searchInput').addEventListener('keyup', function() {
+    filterTable();
+});
+
+// Filtrer par UE/EC
+function filterByUeEc() {
+    filterTable();
+}
+
+// Ajouter un cours à la table cours_attribution
+function ajouterCours() {
+    const select = document.getElementById('filterUeEc');
+    const selectedOption = select.options[select.selectedIndex];
+    
+    if (!selectedOption || !selectedOption.value) {
+        alert('Veuillez sélectionner un UE ou EC');
+        return;
+    }
+    
+    const code = selectedOption.value;
+    const type = selectedOption.dataset.type;
+    
+    fetch('{% url "ajouter_cours_attribution" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            code: code,
+            type: type
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Erreur: ' + error);
+    });
+}
+
+// Fonction de filtrage combiné
+function filterTable() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const ueEcFilter = document.getElementById('filterUeEc').value.toLowerCase();
+    const table = document.getElementById('coursTable');
+    if (!table) return;
+    
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        const code = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
+        const ueParent = row.querySelector('td:nth-child(4)')?.textContent.toLowerCase() || '';
+        
+        // Vérifier si la ligne correspond à la recherche
+        const matchSearch = text.includes(searchTerm);
+        
+        // Vérifier si la ligne correspond au filtre UE/EC
+        let matchUeEc = true;
+        if (ueEcFilter) {
+            matchUeEc = code.includes(ueEcFilter) || ueParent.includes(ueEcFilter);
+        }
+        
+        row.style.display = (matchSearch && matchUeEc) ? '' : 'none';
+    });
+    updateCounters();
+}
+
+// Sélectionner/Désélectionner tout
+document.getElementById('checkAll')?.addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('.row-check');
+    checkboxes.forEach(cb => cb.checked = this.checked);
+    updateCounters();
+});
+
+// Écouter les changements sur chaque checkbox
+document.querySelectorAll('.row-check').forEach(cb => {
+    cb.addEventListener('change', updateCounters);
+});
+
+// Fonction pour obtenir le token CSRF
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Fonction pour supprimer un cours
+function supprimerCours(codeCours) {
+    const csrftoken = getCookie('csrftoken');
+    
+    fetch('{% url "supprimer_cours_attribution" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify({
+            code: codeCours
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Erreur: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Erreur: ' + error);
+    });
+}
+</script>
+{% endblock %}

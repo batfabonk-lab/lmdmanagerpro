@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}Cohorte - {{ classe.code_classe }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>
+        <i class="bi bi-collection me-2"></i>
+        {% if cohorte %}
+            Cohorte : {{ cohorte.code_cohorte }}
+        {% else %}
+            Cohorte - {{ classe.code_classe }}
+        {% endif %}
+    </h4>
+    <div>
+        <span class="badge bg-primary me-2">{{ annee }}</span>
+        <span class="badge bg-secondary">{{ total_etudiants }} étudiant{{ total_etudiants|pluralize }}</span>
+    </div>
+</div>
+
+{% if etudiants_par_classe %}
+    {% for classe_label, etudiants in etudiants_par_classe.items %}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <span>
+                <i class="bi bi-mortarboard me-2"></i>
+                <strong>{{ classe_label }}</strong>
+            </span>
+            <span class="badge bg-light text-dark">{{ etudiants|length }} étudiant{{ etudiants|length|pluralize }}</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 50px;">#</th>
+                            <th>Matricule</th>
+                            <th>Nom Complet</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for data in etudiants %}
+                        <tr>
+                            <td class="text-muted">{{ forloop.counter }}</td>
+                            <td><strong>{{ data.etudiant.matricule_et }}</strong></td>
+                            <td>{{ data.etudiant.nom_complet }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>
+        Aucun étudiant trouvé dans cette cohorte pour l'année {{ annee }}.
+    </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+
+{% block title %}Modifier Évaluation - Jury{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h4 class="mb-0">
+            <i class="bi bi-pencil me-2"></i>Modifier Évaluation
+        </h4>
+        <a href="{% url 'jury_evaluations' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Retour aux évaluations
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                Évaluation pour : <strong>{{ evaluation.matricule_etudiant.nom_complet }}</strong>
+                <span class="text-muted">({{ evaluation.matricule_etudiant.matricule_et }})</span>
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                
+                <!-- Informations sur l'évaluation -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <h6 class="text-muted mb-3">Informations sur l'évaluation</h6>
+                        <div class="mb-2">
+                            <strong>UE:</strong> 
+                            {% if evaluation.code_ue %}
+                                {{ evaluation.code_ue.code_ue }} - {{ evaluation.code_ue.intitule_ue }}
+                            {% elif evaluation.code_ec and evaluation.code_ec.code_ue %}
+                                {{ evaluation.code_ec.code_ue.code_ue }} - {{ evaluation.code_ec.code_ue.intitule_ue }}
+                            {% else %}
+                                Non spécifié
+                            {% endif %}
+                        </div>
+                        <div class="mb-2">
+                            <strong>EC:</strong> 
+                            {% if evaluation.code_ec %}
+                                {{ evaluation.code_ec.code_ec }} - {{ evaluation.code_ec.intitule_ue }}
+                            {% else %}
+                                Non spécifié
+                            {% endif %}
+                        </div>
+                        <div class="mb-2">
+                            <strong>Crédits:</strong> 
+                            {% if evaluation.code_ec %}
+                                {{ evaluation.code_ec.credit }}
+                            {% elif evaluation.code_ue %}
+                                {{ evaluation.code_ue.credit }}
+                            {% else %}
+                                0
+                            {% endif %}
+                        </div>
+                        <div class="mb-2">
+                            <strong>Catégorie:</strong> 
+                            {% if evaluation.code_ue and evaluation.code_ue.categorie %}
+                                <span class="badge bg-info">{{ evaluation.code_ue.categorie }}</span>
+                            {% elif evaluation.code_ec and evaluation.code_ec.categorie %}
+                                <span class="badge bg-info">{{ evaluation.code_ec.categorie }}</span>
+                            {% else %}
+                                <span class="text-muted">Non spécifié</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted mb-3">Notes actuelles</h6>
+                        <div class="mb-2">
+                            <strong>Note Finale:</strong> 
+                            {% if note_finale is not None %}
+                                <span class="badge {% if note_finale >= 10 %}bg-success{% elif note_finale >= 8 %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ note_finale }}/20
+                                </span>
+                            {% else %}
+                                <span class="text-muted">Non calculée</span>
+                            {% endif %}
+                        </div>
+                        <div class="mb-2">
+                            <strong>Statut:</strong> 
+                            {% if evaluation.statut == 'VALIDE' %}
+                                <span class="badge bg-success">Validé</span>
+                            {% elif evaluation.statut == 'NON_VALIDE' %}
+                                <span class="badge bg-danger">Non validé</span>
+                            {% else %}
+                                <span class="badge bg-secondary">En cours</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <!-- Formulaire de modification -->
+                <h6 class="text-muted mb-3">Modifier les notes</h6>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="cc" class="form-label">Note CC (sur 20)</label>
+                            <input type="number" name="cc" id="cc" class="form-control" 
+                                   value="{{ evaluation.cc|default:'' }}" 
+                                   min="0" max="20" step="0.5">
+                            <small class="form-text text-muted">Note de contrôle continu</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="examen" class="form-label">Note Examen (sur 20)</label>
+                            <input type="number" name="examen" id="examen" class="form-control" 
+                                   value="{{ evaluation.examen|default:'' }}" 
+                                   min="0" max="20" step="0.5">
+                            <small class="form-text text-muted">Note d'examen</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="rattrapage" class="form-label">Note Rattrapage (sur 20)</label>
+                            <input type="number" name="rattrapage" id="rattrapage" class="form-control" 
+                                   value="{{ evaluation.rattrapage|default:'' }}" 
+                                   min="0" max="20" step="0.5">
+                            <small class="form-text text-muted">Note de rattrapage (si applicable)</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="statut" class="form-label">Statut</label>
+                            <select name="statut" id="statut" class="form-select">
+                                {% for value, label in statut_choices %}
+                                    <option value="{{ value }}" {% if evaluation.statut == value %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">Statut de l'évaluation</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Informations sur les calculs -->
+                <div class="alert alert-info">
+                    <h6 class="alert-heading">Informations sur les calculs</h6>
+                    <p class="mb-0">
+                        <strong>Note Finale:</strong> CC + Examen (si rattrapage, prend la meilleure note)<br>
+                        <strong>Note Pondérée:</strong> Note Finale × {{ credits }} crédits<br>
+                        <strong>Décision:</strong> Basée sur la note finale (≥10: Admis, ≥8: Rattrapage, <8: Ajourné)
+                    </p>
+                </div>
+
+                <!-- Boutons d'action -->
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'jury_evaluations' %}" class="btn btn-secondary">
+                        <i class="bi bi-x-circle me-1"></i>Annuler
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle me-1"></i>Enregistrer les modifications
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

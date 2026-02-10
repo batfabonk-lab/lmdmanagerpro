@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}Modifier Cohorte{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white"><h5 class="mb-0"><i class="bi bi-pencil me-2"></i>Modifier la Cohorte : {{ cohorte.code_cohorte }}</h5></div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Code Cohorte *</label>
+                            {{ form.code_cohorte }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Libellé *</label>
+                            {{ form.lib_cohorte }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Date de Début *</label>
+                            {{ form.debut }}
+                        </div>
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'gestion_cohortes' %}" class="btn btn-secondary"><i class="bi bi-arrow-left me-2"></i>Retour</a>
+                            <button type="submit" class="btn btn-success"><i class="bi bi-save me-2"></i>Enregistrer</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

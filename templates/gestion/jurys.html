@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestion des Jurys{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-people me-2"></i>Gestion des Jurys</h2>
+    <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#addModal">
+        <i class="bi bi-plus-circle me-2"></i>Ajouter un Jury
+    </button>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <h6 class="card-title">Total Jurys</h6>
+                <h2 class="mb-0">{{ jurys|length }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><i class="bi bi-table me-2"></i>Liste des Jurys</div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Code Jury</th>
+                        <th>Classe</th>
+                        <th>Année Académique</th>
+                        <th>Président</th>
+                        <th>Secrétaire</th>
+                        <th>Membre</th>
+                        <th>Délibérations</th>
+                        <th>Décision DG</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in jurys %}
+                    <tr>
+                        <td><strong>{{ item.jury.code_jury }}</strong></td>
+                        <td><span class="badge bg-primary">{{ item.jury.code_classe }}</span></td>
+                        <td><span class="badge bg-info">{{ item.jury.annee_academique|default:"-" }}</span></td>
+                        <td>{{ item.president_display }}</td>
+                        <td>{{ item.secretaire_display }}</td>
+                        <td>{{ item.membre_display|default:"-" }}</td>
+                        <td>
+                            {% if item.delib_s1 %}<span class="badge bg-success">S1</span>{% endif %}
+                            {% if item.delib_s2 %}<span class="badge bg-success">S2</span>{% endif %}
+                            {% if item.delib_annee %}<span class="badge bg-success">Année</span>{% endif %}
+                            {% if not item.delib_s1 and not item.delib_s2 and not item.delib_annee %}-{% endif %}
+                        </td>
+                        <td>{{ item.jury.decision|default:"-" }}</td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'modifier_jury' item.jury.code_jury %}" class="btn btn-sm btn-warning" title="Modifier">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'supprimer_jury' item.jury.code_jury %}" class="btn btn-sm btn-danger" title="Supprimer">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="9" class="text-center text-muted">Aucun jury trouvé</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Ajouter un Jury</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-hash"></i></span>
+                            {{ form.code_jury }}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-building"></i></span>
+                            {{ form.code_classe }}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-calendar"></i></span>
+                            {{ form.annee_academique }}
+                        </div>
+                    </div>
+                    <hr>
+                    <h6 class="text-muted mb-3"><i class="bi bi-people me-2"></i>Composition du jury</h6>
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
+                            {{ form.president }}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-person-lines-fill"></i></span>
+                            {{ form.secretaire }}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-person"></i></span>
+                            {{ form.membre }}
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="mb-0">
+                        {{ form.decision }}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-warning"><i class="bi bi-save me-2"></i>Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

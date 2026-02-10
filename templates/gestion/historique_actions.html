@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+
+{% block title %}Historique des Actions{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="bi bi-clock-history me-2"></i>
+        Historique des Actions
+    </h2>
+</div>
+
+<!-- Filtres -->
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="bi bi-funnel me-2"></i>
+        Filtres
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Utilisateur</label>
+                <select name="utilisateur" class="form-select">
+                    <option value="">-- Tous les utilisateurs --</option>
+                    {% for user in utilisateurs %}
+                        <option value="{{ user.id }}" {% if utilisateur_id|stringformat:"s" == user.id|stringformat:"s" %}selected{% endif %}>{{ user.get_full_name|default:user.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Type d'Action</label>
+                <select name="type_action" class="form-select">
+                    <option value="">-- Tous les types --</option>
+                    {% for key, label in type_actions %}
+                        <option value="{{ key }}" {% if type_action == key %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Type d'Objet</label>
+                <select name="type_objet" class="form-select">
+                    <option value="">-- Tous les types --</option>
+                    {% for key, label in types_objets %}
+                        <option value="{{ key }}" {% if type_objet == key %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end gap-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search me-2"></i>Filtrer
+                </button>
+                <a href="{% url 'historique_actions' %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tableau des actions -->
+<div class="card">
+    <div class="card-header">
+        <i class="bi bi-table me-2"></i>
+        Liste des Actions ({{ page_obj.paginator.count }} actions)
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Date/Heure</th>
+                        <th>Utilisateur</th>
+                        <th>Type d'Action</th>
+                        <th>Type d'Objet</th>
+                        <th>ID Objet</th>
+                        <th>Nom/Description</th>
+                        <th>Détails</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for action in page_obj %}
+                    <tr>
+                        <td>
+                            <small class="text-muted">{{ action.date_action|date:"d/m/Y H:i:s" }}</small>
+                        </td>
+                        <td>
+                            <strong>{{ action.utilisateur.get_full_name|default:action.utilisateur.username }}</strong>
+                        </td>
+                        <td>
+                            {% if action.type_action == 'CREATION' %}
+                                <span class="badge bg-success">{{ action.get_type_action_display }}</span>
+                            {% elif action.type_action == 'MODIFICATION' %}
+                                <span class="badge bg-warning">{{ action.get_type_action_display }}</span>
+                            {% elif action.type_action == 'SUPPRESSION' %}
+                                <span class="badge bg-danger">{{ action.get_type_action_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ action.type_objet }}</span>
+                        </td>
+                        <td>
+                            <code>{{ action.objet_id }}</code>
+                        </td>
+                        <td>{{ action.objet_nom }}</td>
+                        <td>
+                            {% if action.details %}
+                                <small class="text-muted" title="{{ action.details }}">
+                                    {{ action.details|truncatewords:10 }}
+                                </small>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">Aucune action enregistrée</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Pagination">
+            <ul class="pagination justify-content-center mt-4">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if utilisateur_id %}&utilisateur={{ utilisateur_id }}{% endif %}{% if type_action %}&type_action={{ type_action }}{% endif %}{% if type_objet %}&type_objet={{ type_objet }}{% endif %}">Première</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if utilisateur_id %}&utilisateur={{ utilisateur_id }}{% endif %}{% if type_action %}&type_action={{ type_action }}{% endif %}{% if type_objet %}&type_objet={{ type_objet }}{% endif %}">Précédente</a>
+                    </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% else %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}{% if utilisateur_id %}&utilisateur={{ utilisateur_id }}{% endif %}{% if type_action %}&type_action={{ type_action }}{% endif %}{% if type_objet %}&type_objet={{ type_objet }}{% endif %}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if utilisateur_id %}&utilisateur={{ utilisateur_id }}{% endif %}{% if type_action %}&type_action={{ type_action }}{% endif %}{% if type_objet %}&type_objet={{ type_objet }}{% endif %}">Suivante</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if utilisateur_id %}&utilisateur={{ utilisateur_id }}{% endif %}{% if type_action %}&type_action={{ type_action }}{% endif %}{% if type_objet %}&type_objet={{ type_objet }}{% endif %}">Dernière</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

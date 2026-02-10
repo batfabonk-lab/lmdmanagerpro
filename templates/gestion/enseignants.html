@@ -1,0 +1,349 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestion des Enseignants{% endblock %}
+
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="bi bi-person-workspace me-2"></i>
+        Gestion des Enseignants
+    </h2>
+    <div>
+        <a href="{% url 'import_enseignants' %}" class="btn btn-primary me-2">
+            <i class="bi bi-file-earmark-excel me-2"></i>Importer Excel
+        </a>
+        <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#addModal">
+            <i class="bi bi-plus-circle me-2"></i>Ajouter
+        </button>
+        {% if user.role != 'GESTIONNAIRE' %}
+        <a href="{% url 'generer_comptes_enseignants_existants' %}" class="btn btn-outline-secondary me-2">
+            <i class="bi bi-key me-2"></i>Générer les comptes des enseignants existants
+        </a>
+        <a href="{% url 'supprimer_tout_enseignants' %}" class="btn btn-danger">
+            <i class="bi bi-trash me-2"></i>Supprimer tout
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Statistiques -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-white bg-primary">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="card-title">Total Enseignants</h6>
+                    <h2 class="mb-0">{{ enseignants.count }}</h2>
+                </div>
+                <i class="bi bi-person-workspace fs-1"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-info">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="card-title">Comptes Liés</h6>
+                    <h2 class="mb-0">{{ avec_compte }}</h2>
+                </div>
+                <i class="bi bi-check-circle-fill fs-1"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-warning">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="card-title">Sans Compte</h6>
+                    <h2 class="mb-0">{{ sans_compte }}</h2>
+                </div>
+                <i class="bi bi-exclamation-triangle-fill fs-1"></i>
+            </div>
+        </div>
+    </div>
+
+    {% if last_credentials %}
+    <div class="col-md-9 mt-3 mt-md-0">
+        <div class="alert alert-warning mb-0">
+            <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <div class="me-3">
+                    <strong>Identifiants générés pour le dernier enseignant créé :</strong><br>
+                    <span>Login : <code>{{ last_credentials.username }}</code></span><br>
+                    <span>Mot de passe : <code>{{ last_credentials.password }}</code></span>
+                </div>
+                <small class="text-muted">Copiez ces informations pour les transmettre à l'enseignant.</small>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% if bulk_credentials %}
+    <div class="col-12 mt-3">
+        <div class="card border-warning">
+            <div class="card-header bg-warning">
+                <strong>Identifiants générés pour les enseignants existants sans compte</strong>
+            </div>
+            <div class="card-body p-2">
+                <div class="table-responsive mb-0">
+                    <table class="table table-sm table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>Matricule</th>
+                                <th>Nom complet</th>
+                                <th>Login</th>
+                                <th>Mot de passe</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cred in bulk_credentials %}
+                            <tr>
+                                <td>{{ cred.matricule }}</td>
+                                <td>{{ cred.nom_complet }}</td>
+                                <td><code>{{ cred.username }}</code></td>
+                                <td><code>{{ cred.password }}</code></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <small class="text-muted">Copiez ou exportez ces identifiants pour les transmettre aux enseignants concernés.</small>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Grille des enseignants -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-table me-2"></i>Liste des Enseignants</span>
+        <div style="width: 350px;">
+            <div class="input-group input-group-sm">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" id="searchEnseignant" class="form-control" placeholder="Rechercher par nom, matricule, grade...">
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped table-borderless align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Photo</th>
+                        <th>Matricule</th>
+                        <th>Nom Complet</th>
+                        <th>Grade</th>
+                        <th>Fonction</th>
+                        <th>Département</th>
+                        <th>Section</th>
+                        <th>Téléphone</th>
+                        <th>Compte</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for enseignant in enseignants %}
+                    <tr>
+                        <td>
+                            {% if enseignant.photo %}
+                            <img src="{{ enseignant.photo.url }}" alt="Photo" class="rounded-circle" style="width: 40px; height: 40px; object-fit: cover;">
+                            {% else %}
+                            <i class="bi bi-person-circle" style="font-size: 40px;"></i>
+                            {% endif %}
+                        </td>
+                        <td><strong>{{ enseignant.matricule_en }}</strong></td>
+                        <td>{{ enseignant.nom_complet }}</td>
+                        <td><span class="badge bg-info">{{ enseignant.grade }}</span></td>
+                        <td>{{ enseignant.fonction_id }}</td>
+                        <td>{{ enseignant.code_dpt_id }}</td>
+                        <td>{{ enseignant.code_section_id }}</td>
+                        <td>{{ enseignant.telephone }}</td>
+                        <td>
+                            {% if enseignant.id_lgn %}
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle me-1"></i>{{ enseignant.id_lgn.username }}
+                            </span>
+                            {% else %}
+                            <span class="badge bg-warning">Non lié</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'voir_enseignant' enseignant.matricule_en %}" class="btn btn-sm btn-info" title="Voir détails">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'modifier_enseignant' enseignant.matricule_en %}" class="btn btn-sm btn-warning" title="Modifier">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'supprimer_enseignant' enseignant.matricule_en %}" class="btn btn-sm btn-danger" title="Supprimer">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center text-muted">Aucun enseignant trouvé</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ajout -->
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Ajouter un Enseignant</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="enseignantForm" method="post" action="{% url 'gestion_enseignants' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {{ form.non_field_errors }}
+                    </div>
+                {% endif %}
+
+                <div class="modal-body">
+                    <!-- Zone Photo -->
+                    <div class="text-center mb-4">
+                        <div class="photo-upload-zone" onclick="document.getElementById('photo-input').click();" style="width: 120px; height: 120px; margin: 0 auto; border: 2px dashed #ccc; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; background: #f8f9fa;">
+                            <i class="bi bi-camera fs-3 text-muted"></i>
+                            <small class="text-muted">Ajouter une photo</small>
+                        </div>
+                        {{ form.photo }}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.matricule_en }}
+                        {% if form.matricule_en.errors %}<div class="text-danger small">{{ form.matricule_en.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.nom_complet }}
+                        {% if form.nom_complet.errors %}<div class="text-danger small">{{ form.nom_complet.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.telephone }}
+                        {% if form.telephone.errors %}<div class="text-danger small">{{ form.telephone.errors }}</div>{% endif %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.fonction }}
+                            {% if form.fonction.errors %}<div class="text-danger small">{{ form.fonction.errors }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.grade }}
+                            {% if form.grade.errors %}<div class="text-danger small">{{ form.grade.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.categorie }}
+                            {% if form.categorie.errors %}<div class="text-danger small">{{ form.categorie.errors }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.code_dpt }}
+                            {% if form.code_dpt.errors %}<div class="text-danger small">{{ form.code_dpt.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.code_section }}
+                        {% if form.code_section.errors %}<div class="text-danger small">{{ form.code_section.errors }}</div>{% endif %}
+                    </div>
+                    
+                    <!-- Info compte -->
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Un compte utilisateur sera créé automatiquement avec un identifiant basé sur le nom complet (en minuscules)
+                        et un mot de passe généré aléatoirement. Les identifiants s'afficheront sur la page après l'enregistrement.
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-save me-2"></i>Enregistrer
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x me-2"></i>Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Réouvrir le modal si le formulaire a des erreurs
+    {% if form.errors %}
+    var addModal = new bootstrap.Modal(document.getElementById('addModal'));
+    addModal.show();
+    {% endif %}
+
+    const departementSelect = document.getElementById('id_departement');
+    const sectionSelect = document.getElementById('id_section');
+
+    if (departementSelect && sectionSelect) {
+        departementSelect.addEventListener('change', function() {
+            const departementId = this.value;
+            // Vide le select de section
+            sectionSelect.innerHTML = '<option value="">---------</option>';
+
+            if (departementId) {
+                // Appel AJAX pour récupérer la section
+                fetch(`{% url 'get_section_for_departement' %}?departement_id=${departementId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data && !data.error) {
+                            // Crée et ajoute la nouvelle option
+                            const option = new Option(data.designation_section, data.code_section, true, true);
+                            sectionSelect.add(option);
+                        } else {
+                            console.error('Erreur:', data.error);
+                        }
+                    })
+                    .catch(error => console.error('Erreur lors de la requête AJAX:', error));
+            }
+        });
+    }
+
+    // Preview photo
+    const photoInput = document.getElementById('photo-input');
+    if (photoInput) {
+        photoInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const zone = document.querySelector('.photo-upload-zone');
+                    zone.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    // Recherche enseignants
+    const searchInput = document.getElementById('searchEnseignant');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            const rows = document.querySelectorAll('table tbody tr');
+            rows.forEach(function(row) {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(query) ? '' : 'none';
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

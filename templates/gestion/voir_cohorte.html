@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block title %}Détails Cohorte{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-collection me-2"></i>Informations Cohorte</h5>
+                </div>
+                <div class="card-body">
+                    <h4 class="text-center mb-3">{{ cohorte.lib_cohorte }}</h4>
+                    <hr>
+                    <p><strong>Code :</strong> {{ cohorte.code_cohorte }}</p>
+                    <p><strong>Date de début :</strong> {{ cohorte.debut|date:"d/m/Y" }}</p>
+                    <p><strong>Nombre d'étudiants :</strong> <span class="badge bg-primary">{{ etudiants.count }}</span></p>
+                </div>
+            </div>
+            
+            <div class="mt-3">
+                <a href="{% url 'gestion_cohortes' %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>Retour
+                </a>
+                <a href="{% url 'modifier_cohorte' cohorte.code_cohorte %}" class="btn btn-warning">
+                    <i class="bi bi-pencil me-2"></i>Modifier
+                </a>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-people me-2"></i>Étudiants de cette Cohorte</h5>
+                </div>
+                <div class="card-body">
+                    {% if etudiants %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Photo</th>
+                                    <th>Matricule</th>
+                                    <th>Nom Complet</th>
+                                    <th>Sexe</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for etudiant in etudiants %}
+                                <tr>
+                                    <td>
+                                        {% if etudiant.photo %}
+                                        <img src="{{ etudiant.photo.url }}" alt="Photo" class="rounded-circle" style="width: 40px; height: 40px; object-fit: cover;">
+                                        {% else %}
+                                        <i class="bi bi-person-circle" style="font-size: 40px;"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td><strong>{{ etudiant.matricule_et }}</strong></td>
+                                    <td>{{ etudiant.nom_complet }}</td>
+                                    <td>
+                                        {% if etudiant.sexe == 'M' %}
+                                        <span class="badge bg-info">M</span>
+                                        {% else %}
+                                        <span class="badge bg-pink">F</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'voir_etudiant' etudiant.matricule_et %}" class="btn btn-sm btn-info" title="Voir">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-people" style="font-size: 50px;"></i>
+                        <p class="mt-2">Aucun étudiant dans cette cohorte.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,233 @@
+{% extends 'enseignant/base_enseignant.html' %}
+
+{% block title %}Commentaires - Espace Enseignant{% endblock %}
+{% block page_title %}Commentaires{% endblock %}
+
+{% block content %}
+<!-- Stats Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="card-body text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0 opacity-75">Étudiants disponibles</h6>
+                        <h2 class="mb-0 mt-2">{{ etudiants|length }}</h2>
+                    </div>
+                    <i class="bi bi-people display-4 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+            <div class="card-body text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0 opacity-75">Mes cours</h6>
+                        <h2 class="mb-0 mt-2">{{ cours_list|length }}</h2>
+                    </div>
+                    <i class="bi bi-book display-4 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <div class="card-body text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0 opacity-75">Commentaires</h6>
+                        <h2 class="mb-0 mt-2">{{ commentaires|length }}</h2>
+                    </div>
+                    <i class="bi bi-chat-dots display-4 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Formulaire nouveau commentaire -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-0 py-3" style="border-left: 4px solid #667eea !important;">
+        <h6 class="mb-0"><i class="bi bi-plus-circle me-2 text-primary"></i>Nouveau commentaire</h6>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">
+                        <i class="bi bi-person me-1 text-muted"></i>Étudiant
+                    </label>
+                    <select name="etudiant" class="form-select" required>
+                        <option value="">-- Sélectionner --</option>
+                        {% for etudiant in etudiants %}
+                        <option value="{{ etudiant.matricule_et }}">{{ etudiant.nom_complet }} ({{ etudiant.matricule_et }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">
+                        <i class="bi bi-book me-1 text-muted"></i>Cours
+                    </label>
+                    <select name="cours" class="form-select" required>
+                        <option value="">-- Sélectionner --</option>
+                        {% for cours in cours_list %}
+                        <option value="{{ cours.code }}">{{ cours.intitule }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">
+                        <i class="bi bi-calendar me-1 text-muted"></i>Année
+                    </label>
+                    <select name="annee_commentaire" class="form-select" required>
+                        {% for annee in annees %}
+                        <option value="{{ annee.code_anac }}" {% if forloop.first %}selected{% endif %}>{{ annee.designation_anac }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">
+                        <i class="bi bi-chat-left-text me-1 text-muted"></i>Commentaire
+                    </label>
+                    <div class="input-group">
+                        <textarea name="commentaire" class="form-control" rows="1" required 
+                                  placeholder="Votre commentaire..." style="resize: none;"></textarea>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-send"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Historique des commentaires -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-0 py-3 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="bi bi-clock-history me-2 text-info"></i>Historique des commentaires</h6>
+        <span class="badge bg-info">{{ commentaires|length }} commentaire(s)</span>
+    </div>
+    <div class="card-body">
+        {% if commentaires %}
+        <div class="list-group list-group-flush">
+            {% for comm in commentaires %}
+            <div class="list-group-item border-0 border-bottom px-0 py-3">
+                <div class="d-flex align-items-start">
+                    <div class="avatar bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" 
+                         style="width: 45px; height: 45px; min-width: 45px;">
+                        <i class="bi bi-person"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <div>
+                                <strong>{{ comm.etudiant.nom_complet }}</strong>
+                                <span class="badge bg-secondary ms-2">{{ comm.etudiant.matricule_et }}</span>
+                                <span class="badge bg-info ms-1">{{ comm.code_cours }}</span>
+                                <span class="badge bg-light text-dark ms-1">{{ comm.annee_academique }}</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <small class="text-muted">
+                                    <i class="bi bi-clock me-1"></i>{{ comm.date_creation|date:"d/m/Y H:i" }}
+                                </small>
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editComm{{ comm.id }}" title="Modifier">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteComm{{ comm.id }}" title="Supprimer">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="mb-0 text-muted">{{ comm.contenu }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Modifier -->
+            <div class="modal fade" id="editComm{{ comm.id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                            <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Modifier le commentaire</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form method="post" action="{% url 'enseignant_commentaires' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="edit">
+                            <input type="hidden" name="comm_id" value="{{ comm.id }}">
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <strong>Étudiant :</strong> {{ comm.etudiant.nom_complet }}<br>
+                                    <strong>Cours :</strong> {{ comm.code_cours }} | <strong>Année :</strong> {{ comm.annee_academique }}
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">Commentaire</label>
+                                    <textarea name="commentaire" class="form-control" rows="4" required>{{ comm.contenu }}</textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                <button type="submit" class="btn btn-primary">Enregistrer</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Supprimer -->
+            <div class="modal fade" id="deleteComm{{ comm.id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header bg-danger text-white">
+                            <h5 class="modal-title"><i class="bi bi-trash me-2"></i>Supprimer le commentaire</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form method="post" action="{% url 'enseignant_commentaires' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="comm_id" value="{{ comm.id }}">
+                            <div class="modal-body">
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>
+                                    <strong>Attention !</strong> Cette action est irréversible.
+                                </div>
+                                <p>Supprimer le commentaire pour <strong>{{ comm.etudiant.nom_complet }}</strong> ({{ comm.code_cours }}) ?</p>
+                                <div class="p-3 bg-light rounded">
+                                    <small class="text-muted">{{ comm.contenu }}</small>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                <button type="submit" class="btn btn-danger">Supprimer</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-chat-square-text display-1 text-muted opacity-50"></i>
+            <p class="text-muted mt-3 mb-0">Aucun commentaire pour le moment.</p>
+            <small class="text-muted">Sélectionnez un étudiant et ajoutez votre premier commentaire.</small>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function selectEtudiant(matricule) {
+    const select = document.querySelector('select[name="etudiant"]');
+    select.value = matricule;
+    document.querySelector('textarea[name="commentaire"]').focus();
+    window.scrollTo({top: 0, behavior: 'smooth'});
+}
+</script>
+{% endblock %}

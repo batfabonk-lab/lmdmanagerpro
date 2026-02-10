@@ -1,0 +1,235 @@
+{% extends 'base.html' %}
+
+{% block title %}Recours - {{ classe }}{% endblock %}
+
+{% block content %}
+<style>
+    @media print {
+        .no-print, .sidebar, .navbar, nav, .btn, .alert, button { display: none !important; }
+        .card { border: 1px solid #000 !important; box-shadow: none !important; }
+        .card-header { background: #f8f9fa !important; color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .badge { border: 1px solid #000; padding: 2px 6px; }
+        table { font-size: 11px; }
+        .table-dark th { background: #343a40 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        textarea, select { border: 1px solid #ccc !important; background: #fff !important; }
+    }
+</style>
+
+<!-- En-tête -->
+<div class="card mb-4 border-0 shadow-sm">
+    <div class="card-header bg-warning text-dark">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Gestion des Recours</strong> - Classe {{ classe }}
+            </div>
+            <div class="no-print">
+                <a href="{% url 'jury_recours_pdf' %}" target="_blank" class="btn btn-sm btn-dark me-2">
+                    <i class="bi bi-printer me-1"></i>Imprimer les recours
+                </a>
+                <a href="{% url 'jury_dashboard' %}" class="btn btn-sm btn-outline-dark">
+                    <i class="bi bi-arrow-left me-1"></i>Retour Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistiques des recours -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark border-0">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0">{{ nb_recours_en_attente }}</h3>
+                <small>En attente</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white border-0">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0">{{ nb_recours_en_examen }}</h3>
+                <small>En examen</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white border-0">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0">{{ nb_recours_traites }}</h3>
+                <small>Traités</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white border-0">
+            <div class="card-body text-center py-3">
+                <h3 class="mb-0">{{ nb_recours_rejetes }}</h3>
+                <small>Rejetés</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Liste des recours -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+        <div>
+            <i class="bi bi-list-ul me-2"></i>
+            Liste des Recours ({{ recours|length }})
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if recours %}
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover mb-0 table-sm" style="font-size: 12px; table-layout: auto;">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Étudiant</th>
+                        <th>Objet</th>
+                        <th>UE/EC concerné(e)</th>
+                        <th>Description</th>
+                        <th>Date</th>
+                        <th>Statut</th>
+                        <th>Traitement du Jury</th>
+                        <th>Décision finale</th>
+                        <th class="no-print text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rec in recours %}
+                    <tr>
+                        <td><small class="text-muted">{{ forloop.counter }}</small></td>
+                        <td class="text-nowrap"><strong>{{ rec.etudiant.nom_complet }}</strong></td>
+                        <td><small>{{ rec.get_objet_display }}</small></td>
+                        <td><small>{{ rec.intitule_ue_ec }}</small></td>
+                        <td><small>{{ rec.description|truncatewords:15 }}</small></td>
+                        <td class="text-nowrap"><small>{{ rec.date_envoi|date:"d/m/Y" }}</small></td>
+                        <td class="text-center">
+                            {% if rec.statut == 'EN_ATTENTE' %}
+                                <span class="badge bg-warning text-dark">En attente</span>
+                            {% elif rec.statut == 'EN_EXAMEN' %}
+                                <span class="badge bg-info">En examen</span>
+                            {% elif rec.statut == 'TRAITE' %}
+                                <span class="badge bg-success">Traité</span>
+                            {% elif rec.statut == 'REJETE' %}
+                                <span class="badge bg-danger">Rejeté</span>
+                            {% endif %}
+                        </td>
+                        <!-- Traitement du Jury : lecture seule par défaut -->
+                        <td>
+                            <div class="recours-display-{{ forloop.counter }}">
+                                <small>{{ rec.traitement_jury|default:"—" }}</small>
+                            </div>
+                            <div class="recours-edit-{{ forloop.counter }} no-print" style="display:none;">
+                                <form method="post" id="form-recours-{{ forloop.counter }}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="code_recours" value="{{ rec.code_recours }}">
+                                    <textarea name="traitement_jury" rows="2" class="form-control form-control-sm" style="font-size: 11px;" placeholder="Écrire le traitement...">{{ rec.traitement_jury }}</textarea>
+                            </div>
+                        </td>
+                        <!-- Décision finale : lecture seule par défaut -->
+                        <td>
+                            <div class="recours-display-{{ forloop.counter }}">
+                                <small>
+                                {% if rec.decision_finale == 'ACCEPTE' %}<span class="badge bg-success">Accepté</span>
+                                {% elif rec.decision_finale == 'REJETE' %}<span class="badge bg-danger">Rejeté</span>
+                                {% elif rec.decision_finale == 'PARTIELLEMENT_ACCEPTE' %}<span class="badge bg-warning text-dark">Part. accepté</span>
+                                {% elif rec.decision_finale == 'SANS_SUITE' %}<span class="badge bg-secondary">Sans suite</span>
+                                {% else %}—{% endif %}
+                                </small>
+                            </div>
+                            <div class="recours-edit-{{ forloop.counter }} no-print" style="display:none;">
+                                    <select name="decision_finale" class="form-select form-select-sm mb-1" style="font-size: 11px;">
+                                        <option value="">---</option>
+                                        <option value="ACCEPTE" {% if rec.decision_finale == 'ACCEPTE' %}selected{% endif %}>Accepté</option>
+                                        <option value="REJETE" {% if rec.decision_finale == 'REJETE' %}selected{% endif %}>Rejeté</option>
+                                        <option value="PARTIELLEMENT_ACCEPTE" {% if rec.decision_finale == 'PARTIELLEMENT_ACCEPTE' %}selected{% endif %}>Partiellement accepté</option>
+                                        <option value="SANS_SUITE" {% if rec.decision_finale == 'SANS_SUITE' %}selected{% endif %}>Classé sans suite</option>
+                                    </select>
+                                    <button type="submit" class="btn btn-sm btn-success w-100" style="font-size: 11px;">
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                        <td class="text-center text-nowrap no-print">
+                            <a href="{% url 'jury_detail_recours' rec.code_recours %}" class="btn btn-sm btn-primary p-1" title="Voir détails">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            {% if rec.statut == 'EN_ATTENTE' or rec.statut == 'EN_EXAMEN' %}
+                            <button type="button" class="btn btn-sm btn-warning p-1" title="Traiter" onclick="toggleEdit({{ forloop.counter }})">
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                            <form method="post" action="{% url 'jury_traiter_recours' rec.code_recours %}" class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="commentaire" value="">
+                                {% if rec.statut == 'EN_ATTENTE' %}
+                                <button type="submit" name="action" value="examiner" class="btn btn-sm btn-info p-1" title="Examiner">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                                {% endif %}
+                                <button type="submit" name="action" value="accepter" class="btn btn-sm btn-success p-1" title="Accepter">
+                                    <i class="bi bi-check-circle"></i>
+                                </button>
+                                <button type="submit" name="action" value="rejeter" class="btn btn-sm btn-danger p-1" title="Rejeter">
+                                    <i class="bi bi-x-circle"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                            <a href="{% url 'jury_modifier_recours' rec.code_recours %}" class="btn btn-sm btn-secondary p-1" title="Modifier">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-danger p-1" title="Supprimer" data-bs-toggle="modal" data-bs-target="#deleteModal{{ forloop.counter }}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                            <!-- Modal suppression -->
+                            <div class="modal fade" id="deleteModal{{ forloop.counter }}" tabindex="-1">
+                                <div class="modal-dialog modal-sm">
+                                    <div class="modal-content">
+                                        <div class="modal-header bg-danger text-white py-2">
+                                            <h6 class="modal-title">Confirmer</h6>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body text-start">
+                                            <small>Supprimer le recours <strong>{{ rec.code_recours }}</strong> de <strong>{{ rec.etudiant.nom_complet }}</strong> ?</small>
+                                        </div>
+                                        <div class="modal-footer py-1">
+                                            <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                            <form method="post" action="{% url 'jury_supprimer_recours' rec.code_recours %}" class="d-inline">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center my-5">
+            <i class="bi bi-inbox fs-1 text-muted"></i>
+            <p class="text-muted mt-3">Aucun recours trouvé pour cette classe.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function toggleEdit(index) {
+    var displays = document.querySelectorAll('.recours-display-' + index);
+    var edits = document.querySelectorAll('.recours-edit-' + index);
+    displays.forEach(function(el) {
+        el.style.display = el.style.display === 'none' ? '' : 'none';
+    });
+    edits.forEach(function(el) {
+        el.style.display = el.style.display === 'none' ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

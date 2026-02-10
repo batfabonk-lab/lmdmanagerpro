@@ -1,0 +1,194 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestion des Étudiants{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="bi bi-person-badge me-2"></i>
+        Gestion des Étudiants
+    </h2>
+    <div>
+        <a href="{% url 'import_etudiants' %}" class="btn btn-success me-2">
+            <i class="bi bi-file-earmark-excel me-2"></i>Importer Excel
+        </a>
+        <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#addModal">
+            <i class="bi bi-plus-circle me-2"></i>Ajouter
+        </button>
+        {% if user.role != 'GESTIONNAIRE' %}
+        <a href="{% url 'supprimer_tout_etudiants' %}" class="btn btn-danger">
+            <i class="bi bi-trash me-2"></i>Supprimer tout
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Statistiques -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h6 class="card-title">Total Étudiants</h6>
+                <h2 class="mb-0">{{ etudiants.count }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Grille des étudiants -->
+<div class="card">
+    <div class="card-header">
+        <i class="bi bi-table me-2"></i>
+        Liste des Étudiants
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Photo</th>
+                        <th>Matricule</th>
+                        <th>Nom Complet</th>
+                        <th>Sexe</th>
+                        <th>Date Naissance</th>
+                        <th>Nationalité</th>
+                        <th>Téléphone</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for etudiant in etudiants %}
+                    <tr>
+                        <td>
+                            {% if etudiant.photo %}
+                            <img src="{{ etudiant.photo.url }}" alt="Photo" class="rounded-circle" style="width: 40px; height: 40px; object-fit: cover;">
+                            {% else %}
+                            <i class="bi bi-person-circle" style="font-size: 40px;"></i>
+                            {% endif %}
+                        </td>
+                        <td><strong>{{ etudiant.matricule_et }}</strong></td>
+                        <td>{{ etudiant.nom_complet }}</td>
+                        <td>
+                            {% if etudiant.sexe == 'M' %}
+                            <span class="badge bg-info">Masculin</span>
+                            {% else %}
+                            <span class="badge bg-pink">Féminin</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ etudiant.date_naiss|date:"d/m/Y" }}</td>
+                        <td>{{ etudiant.nationalite }}</td>
+                        <td>{{ etudiant.telephone }}</td>
+                        <td>
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'voir_etudiant' etudiant.matricule_et %}" class="btn btn-sm btn-outline-primary" title="Voir détails">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'modifier_etudiant' etudiant.matricule_et %}" class="btn btn-sm btn-outline-warning" title="Modifier">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'supprimer_etudiant' etudiant.matricule_et %}" class="btn btn-sm btn-outline-danger" title="Supprimer">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted">Aucun étudiant trouvé</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ajout -->
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Ajouter un Étudiant</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <!-- Zone Photo -->
+                    <div class="text-center mb-4">
+                        <div class="photo-upload-zone-etudiant" onclick="document.getElementById('photo-input-etudiant').click();" style="width: 120px; height: 120px; margin: 0 auto; border: 2px dashed #ccc; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; background: #f8f9fa;">
+                            <i class="bi bi-camera fs-3 text-muted"></i>
+                            <small class="text-muted">Ajouter une photo</small>
+                        </div>
+                        {{ form.photo }}
+                    </div>
+                    
+                    <!-- Matricule et Téléphone -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.matricule_et }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.telephone }}
+                        </div>
+                    </div>
+                    
+                    <!-- Nom complet -->
+                    <div class="mb-3">
+                        {{ form.nom_complet }}
+                    </div>
+                    
+                    <!-- Sexe et Date de naissance -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.sexe }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.date_naiss }}
+                        </div>
+                    </div>
+                    
+                    <!-- Nationalité -->
+                    <div class="mb-3">
+                        {{ form.nationalite }}
+                    </div>
+                    
+                    <!-- Info compte -->
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Un compte utilisateur sera créé automatiquement avec le matricule comme identifiant et le mot de passe <strong>matricule + 2025</strong>.
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-save me-2"></i>Enregistrer
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x me-2"></i>Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Preview photo étudiant
+    const photoInput = document.getElementById('photo-input-etudiant');
+    if (photoInput) {
+        photoInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const zone = document.querySelector('.photo-upload-zone-etudiant');
+                    zone.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">`;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

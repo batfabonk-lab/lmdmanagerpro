@@ -1,0 +1,414 @@
+{% extends 'base.html' %}
+
+{% block title %}Délibération{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap gap-2 mb-3">
+    {% if semestres_niveau %}
+        <form method="post" class="m-0">
+            {% csrf_token %}
+            <input type="hidden" name="type" value="S1">
+            <button type="submit" class="btn {% if selected_type == 'S1' %}btn-success{% else %}btn-warning{% endif %}">
+                <i class="bi bi-clipboard-check me-2"></i>Délibérer Semestre {{ semestres_niveau.0 }}
+            </button>
+        </form>
+        <form method="post" class="m-0">
+            {% csrf_token %}
+            <input type="hidden" name="type" value="S2">
+            <button type="submit" class="btn {% if selected_type == 'S2' %}btn-success{% else %}btn-warning{% endif %}">
+                <i class="bi bi-clipboard-check me-2"></i>Délibérer Semestre {{ semestres_niveau.1 }}
+            </button>
+        </form>
+        <form method="post" class="m-0">
+            {% csrf_token %}
+            <input type="hidden" name="type" value="ANNEE">
+            <button type="submit" class="btn {% if selected_type == 'ANNEE' %}btn-success{% else %}btn-warning{% endif %}">
+                <i class="bi bi-clipboard-check me-2"></i>Délibérer Année
+            </button>
+        </form>
+        
+        <!-- Bouton Passage Automatique -->
+        {% if classe and annee_code %}
+        <a href="{% url 'passage_automatique_classe_superieure' %}?classe={{ classe.code_classe }}&annee={{ annee_code }}" 
+           class="btn btn-primary">
+            <i class="bi bi-arrow-up-circle me-2"></i>Passage Automatique
+        </a>
+        {% endif %}
+        
+        <!-- Bouton Imprimer -->
+        {% if url_imprimables %}
+        <a href="{{ url_imprimables }}" class="btn btn-outline-secondary" title="Imprimer les résultats" target="_blank">
+            <i class="bi bi-printer-fill"></i>
+        </a>
+        {% endif %}
+        
+        <!-- Bouton Annuler délibérations -->
+        <div class="btn-group ms-auto" role="group">
+            <button type="button" class="btn btn-outline-danger dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-trash me-1"></i>Annuler délibération
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                    <button type="button" class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#modalAnnulerS1">
+                        <i class="bi bi-x-circle me-2"></i>Semestre {{ semestres_niveau.0 }}
+                    </button>
+                </li>
+                <li>
+                    <button type="button" class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#modalAnnulerS2">
+                        <i class="bi bi-x-circle me-2"></i>Semestre {{ semestres_niveau.1 }}
+                    </button>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <button type="button" class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#modalAnnulerAnnee">
+                        <i class="bi bi-x-circle me-2"></i>Année complète
+                    </button>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <button type="button" class="dropdown-item text-danger fw-bold" data-bs-toggle="modal" data-bs-target="#modalAnnulerTout">
+                        <i class="bi bi-trash me-2"></i>Toutes les délibérations
+                    </button>
+                </li>
+            </ul>
+        </div>
+    {% else %}
+        <form method="post" class="m-0">
+            {% csrf_token %}
+            <input type="hidden" name="type" value="ANNEE">
+            <button type="submit" class="btn btn-warning">
+                <i class="bi bi-clipboard-check me-2"></i>Délibérer
+            </button>
+        </form>
+        <button type="button" class="btn btn-outline-danger ms-auto" data-bs-toggle="modal" data-bs-target="#modalAnnulerTout">
+            <i class="bi bi-trash me-1"></i>Annuler délibérations
+        </button>
+    {% endif %}
+</div>
+
+<!-- Statistiques par décision -->
+{% if semestres_niveau %}
+<div class="row g-0 mb-4">
+    <!-- Groupe S1 -->
+    <div class="col-md-4">
+        <div class="p-2 border-start border-end border-3 border-dark">
+            <h6 class="text-primary text-center mb-2">Semestre {{ semestres_niveau.0 }}</h6>
+            <div class="row g-1">
+                <div class="col-3">
+                    <div class="card bg-success text-white border-0">
+                        <div class="card-body text-center py-1">
+                            <h6 class="mb-0 small">Admis</h6>
+                            <h5 class="mb-0">{{ stats_s1.admis }}</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="card bg-info text-white border-0">
+                        <div class="card-body text-center py-1">
+                            <h6 class="mb-0 small">Comp</h6>
+                            <h5 class="mb-0">{{ stats_s1.compensable }}</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="card bg-danger text-white border-0">
+                        <div class="card-body text-center py-1">
+                            <h6 class="mb-0 small">Aj</h6>
+                            <h5 class="mb-0">{{ stats_s1.ajournes }}</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="card text-white border-0" style="background-color: #fd7e14;">
+                        <div class="card-body text-center py-1">
+                            <h6 class="mb-0 small">Def</h6>
+                            <h5 class="mb-0">{{ stats_s1.defaillants }}</h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Groupe S2 -->
+    <div class="col-md-4">
+        <div class="p-2 border-start border-end border-3 border-dark">
+            <h6 class="text-primary text-center mb-2">Semestre {{ semestres_niveau.1 }}</h6>
+            <div class="row g-1">
+                <div class="col-3">
+                    <div class="card bg-success text-white border-0">
+                        <div class="card-body text-center py-1">
+                            <h6 class="mb-0 small">Admis</h6>
+                            <h5 class="mb-0">{{ stats_s2.admis }}</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="card bg-info text-white border-0">
+                        <div class="card-body text-center py-1">
+                            <h6 class="mb-0 small">Comp</h6>
+                            <h5 class="mb-0">{{ stats_s2.compensable }}</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="card bg-danger text-white border-0">
+                        <div class="card-body text-center py-1">
+                            <h6 class="mb-0 small">Aj</h6>
+                            <h5 class="mb-0">{{ stats_s2.ajournes }}</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="card text-white border-0" style="background-color: #fd7e14;">
+                        <div class="card-body text-center py-1">
+                            <h6 class="mb-0 small">Def</h6>
+                            <h5 class="mb-0">{{ stats_s2.defaillants }}</h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Groupe Annuel -->
+    <div class="col-md-4">
+        <div class="p-2 border-start border-end border-3 border-dark">
+            <h6 class="text-dark text-center mb-2">Annuel</h6>
+            <div class="row g-1">
+                <div class="col-3">
+                    <div class="card bg-success text-white border-0">
+                        <div class="card-body text-center py-1">
+                            <h6 class="mb-0 small">Admis</h6>
+                            <h5 class="mb-0">{{ stats_annuel.admis }}</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="card bg-info text-white border-0">
+                        <div class="card-body text-center py-1">
+                            <h6 class="mb-0 small">Comp</h6>
+                            <h5 class="mb-0">{{ stats_annuel.compensable }}</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="card bg-danger text-white border-0">
+                        <div class="card-body text-center py-1">
+                            <h6 class="mb-0 small">Aj</h6>
+                            <h5 class="mb-0">{{ stats_annuel.ajournes }}</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="card text-white border-0" style="background-color: #fd7e14;">
+                        <div class="card-body text-center py-1">
+                            <h6 class="mb-0 small">Def</h6>
+                            <h5 class="mb-0">{{ stats_annuel.defaillants }}</h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modals de confirmation -->
+{% if semestres_niveau %}
+<div class="modal fade" id="modalAnnulerS1" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Confirmer la suppression</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer toutes les délibérations du <strong>Semestre {{ semestres_niveau.0 }}</strong> ?</p>
+                <p class="text-muted small">Cette action est irréversible.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form method="post" action="{% url 'jury_annuler_deliberation' %}" class="m-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="type" value="S1">
+                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalAnnulerS2" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Confirmer la suppression</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer toutes les délibérations du <strong>Semestre {{ semestres_niveau.1 }}</strong> ?</p>
+                <p class="text-muted small">Cette action est irréversible.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form method="post" action="{% url 'jury_annuler_deliberation' %}" class="m-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="type" value="S2">
+                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalAnnulerAnnee" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Confirmer la suppression</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer toutes les délibérations de l'<strong>Année complète</strong> ?</p>
+                <p class="text-muted small">Cette action est irréversible.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form method="post" action="{% url 'jury_annuler_deliberation' %}" class="m-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="type" value="ANNEE">
+                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="modal fade" id="modalAnnulerTout" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Confirmer la suppression</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer <strong>TOUTES</strong> les délibérations de cette classe ?</p>
+                <p class="text-danger small"><i class="bi bi-exclamation-triangle me-1"></i>Cette action supprimera les délibérations S1, S2 et Annuelles. Elle est irréversible.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form method="post" action="{% url 'jury_annuler_deliberation' %}" class="m-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="type" value="TOUT">
+                    <button type="submit" class="btn btn-danger">Supprimer tout</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if semestres_niveau %}
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="fw-bold">Cours pris en compte</div>
+                <div class="fs-4">{{ nb_cours_selection }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="fw-bold">Total crédits (sélection)</div>
+                <div class="fs-4">{{ credits_selection }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="fw-bold">Crédits par semestre</div>
+                {% for s in stats_semestres %}
+                    <div>Semestre {{ s.semestre }} : {{ s.nb_cours }} cours / {{ s.credits }} crédits</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header bg-warning text-dark">
+        <i class="bi bi-clipboard-check me-2"></i>
+        Résultats des Étudiants
+    </div>
+    <div class="card-body">
+        {% if resultats %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Matricule</th>
+                        <th>Nom Complet</th>
+                        <th>Crédits S1</th>
+                        <th>Crédits S2</th>
+                        <th>Crédits Annuel</th>
+                        <th>Moyenne Générale</th>
+                        <th>Mention</th>
+                        <th>Décision</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for resultat in resultats %}
+                    <tr>
+                        <td>{{ resultat.etudiant.matricule_et }}</td>
+                        <td>{{ resultat.etudiant.nom_complet }}</td>
+                        <td class="text-center fw-bold text-success">{{ resultat.credits_s1_capitalises|default:0 }}</td>
+                        <td class="text-center fw-bold text-success">{{ resultat.credits_s2_capitalises|default:0 }}</td>
+                        <td class="text-center fw-bold text-primary">{{ resultat.credits_annuel_capitalises|default:0 }}</td>
+                        <td class="fw-bold">{{ resultat.moyenne }}/20</td>
+                        <td class="text-center">
+                            {% if resultat.mention %}
+                                <span class="badge {% if 'Excellent' in resultat.mention %}bg-success{% elif 'Très bien' in resultat.mention %}bg-info{% elif 'Bien' in resultat.mention %}bg-primary{% elif 'Assez Bien' in resultat.mention %}bg-warning{% else %}bg-secondary{% endif %}">
+                                    {{ resultat.mention }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if resultat.decision %}
+                                {% if 'Admis' in resultat.decision and 'dette' not in resultat.decision %}
+                                    <span class="badge bg-success">{{ resultat.decision }}</span>
+                                {% elif 'dette' in resultat.decision or 'ADMD' in resultat.decision %}
+                                    <span class="badge bg-info">{{ resultat.decision }}</span>
+                                {% elif 'Ajourné' in resultat.decision or '(AJ)' in resultat.decision %}
+                                    <span class="badge bg-danger">{{ resultat.decision }}</span>
+                                {% elif 'Défaillant' in resultat.decision or '(DEF)' in resultat.decision %}
+                                    <span class="badge" style="background-color: #fd7e14; color: white;">{{ resultat.decision }}</span>
+                                {% elif 'Compensable' in resultat.decision or '(COMP)' in resultat.decision %}
+                                    <span class="badge bg-info">{{ resultat.decision }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ resultat.decision }}</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            Aucun résultat disponible pour cette classe.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row">
+    <!-- Sidemenu Réglage -->
+    <div class="col-md-2">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <i class="bi bi-gear me-2"></i>Réglages
+            </div>
+            <div class="card-body p-0">
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link {% if active == 'sections' %}active bg-primary text-white{% endif %}" href="{% url 'gestion_sections' %}">
+                            <i class="bi bi-building me-2"></i>Sections
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active == 'departements' %}active bg-primary text-white{% endif %}" href="{% url 'gestion_departements' %}">
+                            <i class="bi bi-diagram-3 me-2"></i>Départements
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active == 'mentions' %}active bg-primary text-white{% endif %}" href="{% url 'gestion_mentions' %}">
+                            <i class="bi bi-award me-2"></i>Mentions
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active == 'niveaux' %}active bg-primary text-white{% endif %}" href="{% url 'gestion_niveaux' %}">
+                            <i class="bi bi-layers me-2"></i>Niveaux
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active == 'semestres' %}active bg-primary text-white{% endif %}" href="{% url 'gestion_semestres' %}">
+                            <i class="bi bi-calendar3 me-2"></i>Semestres
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active == 'classes' %}active bg-primary text-white{% endif %}" href="{% url 'gestion_classes' %}">
+                            <i class="bi bi-mortarboard me-2"></i>Classes
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active == 'annees' %}active bg-primary text-white{% endif %}" href="{% url 'gestion_annees' %}">
+                            <i class="bi bi-calendar-range me-2"></i>Années Acad.
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active == 'grades' %}active bg-primary text-white{% endif %}" href="{% url 'gestion_grades' %}">
+                            <i class="bi bi-star me-2"></i>Grades
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active == 'fonctions' %}active bg-primary text-white{% endif %}" href="{% url 'gestion_fonctions' %}">
+                            <i class="bi bi-briefcase me-2"></i>Fonctions
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active == 'typecharges' %}active bg-primary text-white{% endif %}" href="{% url 'gestion_typecharges' %}">
+                            <i class="bi bi-clipboard-check me-2"></i>Types Charge
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if active == 'categories' %}active bg-primary text-white{% endif %}" href="{% url 'gestion_categories' %}">
+                            <i class="bi bi-tags me-2"></i>Catégories
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Contenu principal Réglage -->
+    <div class="col-md-10">
+        {% block reglage_content %}{% endblock %}
+    </div>
+</div>
+{% endblock %}

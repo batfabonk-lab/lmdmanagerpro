@@ -1,0 +1,386 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Gestion des Utilisateurs{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0">
+                <i class="bi bi-people-fill text-primary me-2"></i>
+                Gestion des Utilisateurs
+            </h2>
+            <p class="text-muted mb-0">{{ utilisateurs.count }} utilisateur(s) enregistré(s)</p>
+        </div>
+        <div>
+            <div class="btn-group me-2">
+                <button type="button" class="btn btn-warning dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="bi bi-download me-2"></i>Exporter identifiants
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{% url 'exporter_credentials_utilisateurs' %}">Tous les utilisateurs</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{% url 'exporter_credentials_utilisateurs' %}?role=ENSEIGNANT">Enseignants uniquement</a></li>
+                    <li><a class="dropdown-item" href="{% url 'exporter_credentials_utilisateurs' %}?role=ETUDIANT">Étudiants uniquement</a></li>
+                    <li><a class="dropdown-item" href="{% url 'exporter_credentials_utilisateurs' %}?role=JURY">Jurys uniquement</a></li>
+                    <li><a class="dropdown-item" href="{% url 'exporter_credentials_utilisateurs' %}?role=ADMIN">Administrateurs uniquement</a></li>
+                </ul>
+            </div>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
+                <i class="bi bi-plus-circle me-2"></i>
+                Nouvel Utilisateur
+            </button>
+        </div>
+    </div>
+
+    <!-- Tableau de bord statistiques -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="card-body text-white p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0 opacity-75 small">Total Utilisateurs</h6>
+                            <h3 class="mb-0 mt-2">{{ stats_utilisateurs.total_utilisateurs }}</h3>
+                        </div>
+                        <i class="bi bi-people-fill display-5 opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                <div class="card-body text-white p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0 opacity-75 small">Enseignants</h6>
+                            <h3 class="mb-0 mt-2">{{ stats_utilisateurs.total_enseignants }}</h3>
+                        </div>
+                        <i class="bi bi-person-workspace display-5 opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <div class="card-body text-white p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0 opacity-75 small">Étudiants</h6>
+                            <h3 class="mb-0 mt-2">{{ stats_utilisateurs.total_etudiants }}</h3>
+                        </div>
+                        <i class="bi bi-person-badge display-5 opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                <div class="card-body text-white p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0 opacity-75 small">Jurys</h6>
+                            <h3 class="mb-0 mt-2">{{ stats_utilisateurs.total_jury }}</h3>
+                        </div>
+                        <i class="bi bi-people-fill display-5 opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+    <div class="mb-4">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Tableau des utilisateurs -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <div class="row align-items-center">
+                <div class="col-md-3">
+                    <h5 class="mb-0">Liste des Utilisateurs</h5>
+                </div>
+                <div class="col-md-3 text-center">
+                    <form id="bulkDeleteForm" method="post" action="{% url 'supprimer_utilisateurs_selection' %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Supprimer tous les utilisateurs sélectionnés ?');">
+                            <i class="bi bi-trash me-1"></i>Supprimer la sélection
+                        </button>
+                    </form>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" id="roleFilter">
+                        <option value="">Tous les rôles</option>
+                        <option value="ADMIN">Administrateur</option>
+                        <option value="ENSEIGNANT">Enseignant</option>
+                        <option value="ETUDIANT">Étudiant</option>
+                        <option value="JURY">Jury</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Rechercher...">
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <form method="post" action="{% url 'supprimer_utilisateurs_selection' %}">
+                {% csrf_token %}
+                <table class="table table-hover mb-0" id="utilisateursTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 40px;">
+                                <input type="checkbox" id="selectAll">
+                            </th>
+                            <th>ID</th>
+                            <th>Username</th>
+                            <th>Nom complet</th>
+                            <th>Email</th>
+                            <th>Rôle</th>
+                            <th>Classe</th>
+                            <th>Année</th>
+                            <th>Statut</th>
+                            <th>Date création</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in utilisateurs %}
+                        <tr>
+                            <td>
+                                {% if user != request.user %}
+                                <input type="checkbox" name="selected_users" value="{{ user.id }}" class="user-checkbox">
+                                {% endif %}
+                            </td>
+                            <td>{{ user.id }}</td>
+                            <td><strong>{{ user.username }}</strong></td>
+                            <td>
+                                {% if user.enseignant %}
+                                    {{ user.enseignant.nom_complet }}
+                                {% elif user.etudiant %}
+                                    {{ user.etudiant.nom_complet }}
+                                {% else %}
+                                    {{ user.first_name }} {{ user.last_name }}
+                                {% endif %}
+                            </td>
+                            <td>{{ user.email|default:"-" }}</td>
+                            <td>
+                                {% if user.role == 'ADMIN' %}
+                                <span class="badge bg-danger">{{ user.get_role_display }}</span>
+                                {% elif user.role == 'ENSEIGNANT' %}
+                                <span class="badge bg-primary">{{ user.get_role_display }}</span>
+                                {% elif user.role == 'ETUDIANT' %}
+                                <span class="badge bg-success">{{ user.get_role_display }}</span>
+                                {% elif user.role == 'JURY' %}
+                                <span class="badge bg-warning">{{ user.get_role_display }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ user.get_role_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.role == 'JURY' %}
+                                    {{ user.jury_classe|default:"-" }}
+                                {% elif user.role == 'ETUDIANT' %}
+                                    {{ user.etu_classe|default:"-" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.role == 'JURY' %}
+                                    {{ user.jury_annee|default:"-" }}
+                                {% elif user.role == 'ETUDIANT' %}
+                                    {{ user.etu_annee|default:"-" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.is_active %}
+                                <span class="badge bg-success">Actif</span>
+                                {% else %}
+                                <span class="badge bg-danger">Inactif</span>
+                                {% endif %}
+                                {% if user.is_staff %}
+                                <span class="badge bg-info">Staff</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user.date_joined|date:"d/m/Y H:i" }}</td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'modifier_utilisateur' user.id %}" class="btn btn-outline-primary" title="Modifier">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a href="{% url 'reinitialiser_mot_de_passe' user.id %}" class="btn btn-outline-warning" title="Réinitialiser MDP" onclick="return confirm('Réinitialiser le mot de passe à changeme123 ?');">
+                                        <i class="bi bi-key"></i>
+                                    </a>
+                                    {% if user != request.user %}
+                                    <a href="{% url 'supprimer_utilisateur' user.id %}" class="btn btn-outline-danger" title="Supprimer">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="11" class="text-center text-muted">Aucun utilisateur trouvé</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <!-- Bouton de suppression en bas pour mobile/petite hauteur -->
+                <div class="p-3 border-top d-flex justify-content-end">
+                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Supprimer tous les utilisateurs sélectionnés ?');">
+                        <i class="bi bi-trash me-1"></i>Supprimer la sélection
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ajout -->
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Nouvel Utilisateur</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <!-- Username et Email -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Nom d'utilisateur *</label>
+                            {{ form.username }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Email</label>
+                            {{ form.email }}
+                        </div>
+                    </div>
+                    
+                    <!-- Prénom et Nom -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Prénom</label>
+                            {{ form.first_name }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Nom</label>
+                            {{ form.last_name }}
+                        </div>
+                    </div>
+                    
+                    <!-- Mot de passe -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Mot de passe *</label>
+                            {{ form.password1 }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label fw-bold">Confirmer *</label>
+                            {{ form.password2 }}
+                        </div>
+                    </div>
+                    
+                    <!-- Rôle -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Rôle *</label>
+                        {{ form.role }}
+                    </div>
+                    
+                    <!-- Options -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check">
+                                {{ form.is_active }}
+                                <label class="form-check-label" for="id_is_active">Compte actif</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check">
+                                {{ form.is_staff }}
+                                <label class="form-check-label" for="id_is_staff">Accès administration</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-save me-2"></i>Enregistrer
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x me-2"></i>Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const roleFilter = document.getElementById('roleFilter');
+    const rows = document.querySelectorAll('#utilisateursTable tbody tr');
+    
+    // Fonction de filtrage combiné (recherche + rôle)
+    function filterTable() {
+        const searchText = searchInput.value.toLowerCase();
+        const selectedRole = roleFilter.value;
+        
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            const roleCell = row.querySelector('td:nth-child(6)'); // Colonne du rôle
+            const rowRole = roleCell ? roleCell.textContent.trim() : '';
+            
+            // Mapping des valeurs de filtre aux textes affichés
+            const roleMap = {
+                'ADMIN': 'Administrateur',
+                'ENSEIGNANT': 'Enseignant',
+                'ETUDIANT': 'Étudiant',
+                'JURY': 'Jury'
+            };
+            
+            const matchSearch = text.includes(searchText);
+            const matchRole = !selectedRole || rowRole === roleMap[selectedRole];
+            
+            row.style.display = (matchSearch && matchRole) ? '' : 'none';
+        });
+    }
+    
+    // Recherche dans le tableau
+    searchInput.addEventListener('keyup', filterTable);
+    
+    // Filtre par rôle
+    roleFilter.addEventListener('change', filterTable);
+
+    // Sélection / désélection globale
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.user-checkbox');
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            checkboxes.forEach(cb => {
+                // Ne cocher que les lignes visibles
+                if (cb.closest('tr').style.display !== 'none') {
+                    cb.checked = selectAll.checked;
+                }
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block title %}Communiqué{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">
+        <i class="bi bi-megaphone me-2"></i>
+        Communiqué
+    </h2>
+    <div class="text-muted">
+        {% if annee_code %}<span class="badge bg-primary">{{ annee_code }}</span>{% endif %}
+        {% if classe_active %}<span class="badge bg-secondary">{{ classe_active.code_classe }}</span>{% endif %}
+    </div>
+</div>
+
+{% if communiques %}
+    {% for c in communiques %}
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <div>
+                <strong>Date de délibération :</strong>
+                <span class="badge bg-warning text-dark">{{ c.date_deliberation|date:"d/m/Y" }}</span>
+            </div>
+            <small class="text-muted">Publié le {{ c.date_creation|date:"d/m/Y H:i" }}</small>
+        </div>
+        <div class="card-body">
+            {% if c.contenu %}
+                <div class="text-muted" style="white-space: pre-wrap;">{{ c.contenu }}</div>
+            {% else %}
+                <div class="text-muted">Aucun message détaillé.</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>
+    Aucun communiqué disponible pour le moment.
+</div>
+{% endif %}
+{% endblock %}

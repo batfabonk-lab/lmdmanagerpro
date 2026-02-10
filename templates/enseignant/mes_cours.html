@@ -1,0 +1,115 @@
+{% extends 'enseignant/base_enseignant.html' %}
+
+{% block title %}Mes Cours - Espace Enseignant{% endblock %}
+{% block page_title %}Mes Cours{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0">Total Cours</h6>
+                        <h2 class="mb-0 mt-2">{{ attributions|length }}</h2>
+                    </div>
+                    <i class="bi bi-book display-4"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0">Total Crédits</h6>
+                        <h2 class="mb-0 mt-2">{{ total_credits }}</h2>
+                    </div>
+                    <i class="bi bi-award display-4"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtre par année académique -->
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-md-4">
+                <select name="annee" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- Toutes les années --</option>
+                    {% for annee in annees %}
+                    <option value="{{ annee.code_anac }}" {% if annee_filter == annee.code_anac %}selected{% endif %}>
+                        {{ annee.designation_anac }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% if annee_filter %}
+            <div class="col-md-2">
+                <a href="{% url 'enseignant_mes_cours' %}" class="btn btn-outline-secondary w-100">
+                    <i class="bi bi-x me-1"></i>Réinitialiser
+                </a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-list-check me-2"></i>Liste de mes cours attribués</span>
+    </div>
+    <div class="card-body">
+        {% if attributions %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Code Cours</th>
+                        <th>Intitulé</th>
+                        <th>Type</th>
+                        <th>Crédits</th>
+                        <th>Semestre</th>
+                        <th>Classe</th>
+                        <th>Type Charge</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for attr in attributions %}
+                    <tr>
+                        <td><strong>{{ attr.code_cours }}</strong></td>
+                        <td>{{ attr.intitule|default:"-" }}</td>
+                        <td>
+                            {% if attr.type_cours == 'UE' %}
+                            <span class="badge bg-info">UE</span>
+                            {% else %}
+                            <span class="badge bg-success">EC</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ attr.credit|default:"-" }}</td>
+                        <td><span class="badge bg-info">S{{ attr.semestre|default:"-" }}</span></td>
+                        <td><span class="badge bg-secondary">{{ attr.classe|default:"-" }}</span></td>
+                        <td>{{ attr.type_charge }}</td>
+                        <td>
+                            <a href="{% url 'enseignant_evaluer_cours' code_cours=attr.code_cours annee=attr.annee_academique %}" class="btn btn-sm btn-primary" title="Évaluer ce cours">
+                                <i class="bi bi-pencil-square me-1"></i>Évaluer
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-inbox display-1 text-muted"></i>
+            <p class="text-muted mt-3">Aucun cours attribué pour le moment.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

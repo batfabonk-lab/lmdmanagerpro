@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block title %}Sélectionner un Enseignant - Admin{% endblock %}
+
+{% block content %}
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-success text-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <i class="bi bi-person-workspace me-2"></i>
+                <strong>Sélectionner un Enseignant</strong>
+            </div>
+            <a href="{% url 'home' %}" class="btn btn-sm btn-outline-light">
+                <i class="bi bi-arrow-left me-1"></i>Retour
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <p class="text-muted mb-3">Sélectionnez un enseignant pour visualiser son espace</p>
+        
+        {% if enseignants %}
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Matricule</th>
+                        <th>Nom Complet</th>
+                        <th>Grade</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ens in enseignants %}
+                    <tr>
+                        <td><strong>{{ ens.matricule_en }}</strong></td>
+                        <td>{{ ens.nom_complet }}</td>
+                        <td>
+                            {% if ens.grade %}
+                                <span class="badge bg-info">{{ ens.grade.code_grade }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'admin_simulate_enseignant' matricule=ens.matricule_en %}" class="btn btn-sm btn-success">
+                                <i class="bi bi-box-arrow-in-right me-1"></i>Accéder à l'espace
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-person-x display-1 text-muted"></i>
+            <p class="text-muted mt-3">Aucun enseignant trouvé.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

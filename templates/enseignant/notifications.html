@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+
+{% block title %}Notifications - Enseignant{% endblock %}
+
+{% block extra_css %}
+<style>
+.notifications-container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.notification-item {
+    border-left: 4px solid #e2e8f0;
+    transition: all 0.3s ease;
+    border-radius: 0 12px 12px 0;
+}
+
+.notification-item.unread {
+    border-left-color: #3b82f6;
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.05) 0%, transparent 100%);
+}
+
+.notification-item:hover {
+    transform: translateX(4px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.notification-badge {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #3b82f6;
+    display: inline-block;
+}
+
+.notification-type-communique {
+    border-left-color: #f59e0b !important;
+}
+
+.notification-type-communique.unread {
+    background: linear-gradient(90deg, rgba(245, 158, 11, 0.05) 0%, transparent 100%);
+}
+
+.notification-type-resultat {
+    border-left-color: #10b981 !important;
+}
+
+.notification-type-resultat.unread {
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.05) 0%, transparent 100%);
+}
+
+.notification-type-evaluation {
+    border-left-color: #8b5cf6 !important;
+}
+
+.notification-type-evaluation.unread {
+    background: linear-gradient(90deg, rgba(139, 92, 246, 0.05) 0%, transparent 100%);
+}
+
+.notification-type-systeme {
+    border-left-color: #ef4444 !important;
+}
+
+.notification-type-systeme.unread {
+    background: linear-gradient(90deg, rgba(239, 68, 68, 0.05) 0%, transparent 100%);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: #94a3b8;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+
+.modern-btn {
+    border-radius: 12px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.modern-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.stats-card {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border-radius: 16px;
+    padding: 1.5rem;
+    text-align: center;
+    border: none;
+}
+
+.stats-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1e293b;
+}
+
+.stats-label {
+    color: #64748b;
+    font-weight: 500;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="notifications-container">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="mb-1">
+                    <i class="bi bi-bell-fill me-2"></i>
+                    Mes Notifications
+                </h2>
+                <p class="text-muted mb-0">
+                    {% if notifications_non_lues > 0 %}
+                        {{ notifications_non_lues }} notification(s) non lue(s)
+                    {% else %}
+                        Toutes vos notifications ont été lues
+                    {% endif %}
+                </p>
+            </div>
+            
+            {% if notifications_non_lues > 0 %}
+            <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="marquer_toutes_lues" value="1">
+                <button type="submit" class="btn btn-outline-primary modern-btn">
+                    <i class="bi bi-check2-all me-2"></i>
+                    Marquer tout comme lu
+                </button>
+            </form>
+            {% endif %}
+        </div>
+
+        <!-- Statistiques -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <div class="stats-number">{{ total_notifications }}</div>
+                    <div class="stats-label">Total</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <div class="stats-number text-primary">{{ notifications_non_lues }}</div>
+                    <div class="stats-label">Non lues</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stats-card">
+                    <div class="stats-number text-success">{{ total_notifications|add:'-'|add:notifications_non_lues }}</div>
+                    <div class="stats-label">Lues</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Liste des notifications -->
+        {% if notifications %}
+            {% for notification in notifications %}
+            <div class="notification-item card mb-3 {% if not notification.lue %}unread{% endif %} notification-type-{{ notification.type_notification|lower }}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center mb-2">
+                                {% if not notification.lue %}
+                                    <span class="notification-badge me-2"></span>
+                                {% endif %}
+                                <h6 class="mb-0 me-3">{{ notification.titre }}</h6>
+                                <span class="badge bg-secondary">
+                                    {{ notification.get_type_notification_display }}
+                                </span>
+                            </div>
+                            
+                            <div class="text-muted mb-3">
+                                <small>
+                                    <i class="bi bi-clock me-1"></i>
+                                    {{ notification.date_creation|date:"d/m/Y H:i" }}
+                                    {% if notification.code_classe %}
+                                        | <i class="bi bi-mortarboard me-1"></i>
+                                        {{ notification.code_classe.code_classe }}
+                                    {% endif %}
+                                    {% if notification.annee_academique %}
+                                        | <i class="bi bi-calendar3 me-1"></i>
+                                        {{ notification.annee_academique }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            
+                            <div class="mb-3" style="white-space: pre-wrap;">{{ notification.message }}</div>
+                            
+                            {% if notification.lien %}
+                            <a href="{{ notification.lien }}" class="btn btn-sm btn-outline-primary modern-btn">
+                                <i class="bi bi-box-arrow-up-right me-1"></i>
+                                Voir les détails
+                            </a>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="ms-3">
+                            {% if not notification.lue %}
+                            <form method="post" class="d-inline">
+                                {% csrf_token %}
+                                <input type="hidden" name="notification_id" value="{{ notification.id_notification }}">
+                                <input type="hidden" name="marquer_lue" value="1">
+                                <button type="submit" class="btn btn-sm btn-outline-success modern-btn" title="Marquer comme lu">
+                                    <i class="bi bi-check2"></i>
+                                </button>
+                            </form>
+                            {% else %}
+                            <span class="text-muted">
+                                <i class="bi bi-check-circle-fill text-success"></i>
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <i class="bi bi-bell"></i>
+                <h4 class="mt-3">Aucune notification</h4>
+                <p>Vous n'avez aucune notification pour le moment.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

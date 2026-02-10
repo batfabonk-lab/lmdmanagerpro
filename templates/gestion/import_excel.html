@@ -1,0 +1,121 @@
+{% extends 'base.html' %}
+{% block title %}Importer {{ titre }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-file-earmark-excel me-2"></i>Importer {{ titre }} depuis Excel</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h6><i class="bi bi-info-circle me-2"></i>Instructions</h6>
+                        <ol class="mb-0">
+                            <li>Téléchargez le modèle Excel ci-dessous</li>
+                            <li>Remplissez le fichier avec vos données</li>
+                            <li>Importez le fichier rempli</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0"><i class="bi bi-columns me-2"></i>Colonnes attendues</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered mb-0">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            {% for col in colonnes %}
+                                            <th>{{ col }}</th>
+                                            {% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr class="text-muted">
+                                            {% for col in colonnes %}
+                                            <td><em>valeur</em></td>
+                                            {% endfor %}
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="card h-100 border-primary">
+                                <div class="card-header bg-primary text-white">
+                                    <h6 class="mb-0"><i class="bi bi-download me-2"></i>Étape 1 : Télécharger le modèle</h6>
+                                </div>
+                                <div class="card-body text-center">
+                                    <i class="bi bi-file-earmark-spreadsheet display-4 text-primary mb-3"></i>
+                                    <p class="text-muted">Téléchargez le fichier modèle avec les colonnes prédéfinies</p>
+                                    {% if titre == 'Étudiants' %}
+                                    <a href="{% url 'telecharger_modele_excel' 'etudiants' %}" class="btn btn-primary">
+                                        <i class="bi bi-download me-2"></i>Télécharger le modèle
+                                    </a>
+                                    {% elif titre == 'Enseignants' %}
+                                    <a href="{% url 'telecharger_modele_excel' 'enseignants' %}" class="btn btn-primary">
+                                        <i class="bi bi-download me-2"></i>Télécharger le modèle
+                                    </a>
+                                    {% elif titre == 'Fonctions' %}
+                                    <a href="{% url 'telecharger_modele_excel' 'fonctions' %}" class="btn btn-primary">
+                                        <i class="bi bi-download me-2"></i>Télécharger le modèle
+                                    </a>
+                                    {% elif "UE" in titre %}
+                                    <a href="{% url 'telecharger_modele_excel' 'ue' %}" class="btn btn-primary">
+                                        <i class="bi bi-download me-2"></i>Télécharger le modèle
+                                    </a>
+                                    {% elif "EC" in titre %}
+                                    <a href="{% url 'telecharger_modele_excel' 'ec' %}" class="btn btn-primary">
+                                        <i class="bi bi-download me-2"></i>Télécharger le modèle
+                                    </a>
+                                    {% elif titre == 'Inscriptions' %}
+                                    <a href="{% url 'telecharger_modele_excel' 'inscriptions' %}" class="btn btn-primary">
+                                        <i class="bi bi-download me-2"></i>Télécharger le modèle
+                                    </a>
+                                    {% elif titre == 'Cohortes' %}
+                                    <a href="{% url 'telecharger_modele_excel' 'cohortes' %}" class="btn btn-primary">
+                                        <i class="bi bi-download me-2"></i>Télécharger le modèle
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card h-100 border-success">
+                                <div class="card-header bg-success text-white">
+                                    <h6 class="mb-0"><i class="bi bi-upload me-2"></i>Étape 2 : Importer le fichier</h6>
+                                </div>
+                                <div class="card-body">
+                                    <form method="post" enctype="multipart/form-data">
+                                        {% csrf_token %}
+                                        <div class="mb-3">
+                                            <label class="form-label fw-bold">Fichier Excel (.xlsx)</label>
+                                            <input type="file" name="excel_file" class="form-control" accept=".xlsx,.xls" required>
+                                        </div>
+                                        <button type="submit" class="btn btn-success w-100">
+                                            <i class="bi bi-upload me-2"></i>Importer
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a href="{% url retour %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>Retour
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
