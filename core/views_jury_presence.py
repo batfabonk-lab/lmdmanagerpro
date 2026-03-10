@@ -954,7 +954,7 @@ def jury_imprimable_profils_tous(request):
         # Récupérer les membres du jury de la classe
         from .models import Jury, Enseignant
         try:
-            jury_obj = Jury.objects.filter(code_classe=classe_obj).first()
+            jury_obj = Jury.objects.filter(code_classe=classe_obj, annee_academique=annee).first()
             if jury_obj:
                 # Membre du jury
                 if jury_obj.membre:
@@ -1886,7 +1886,7 @@ def jury_imprimable_profils_selectionnes(request):
         # Récupérer les membres du jury de la classe
         from .models import Jury, Enseignant
         try:
-            jury_obj = Jury.objects.filter(code_classe=classe_obj).first()
+            jury_obj = Jury.objects.filter(code_classe=classe_obj, annee_academique=annee).first()
             if jury_obj:
                 # Membre du jury
                 if jury_obj.membre:
@@ -2017,3 +2017,112 @@ def jury_imprimable_profils_selectionnes(request):
     response['Content-Disposition'] = f'inline; filename="{filename}"'
     
     return response
+
+
+@login_required
+def jury_imprimable_palmares_selectionnes(request):
+    """Génère le palmarès PDF uniquement pour les étudiants sélectionnés"""
+    from .utils_palmares_pdf import generer_palmares_pdf
+    from .views import _require_deliberation_for_imprimable, _jury_compute_delib_ues
+
+    jury = get_jury_for_user(request)
+    if not jury:
+        messages.error(request, 'Profil jury non trouvé.')
+        return redirect('jury_imprimables')
+
+    classe_obj = jury.code_classe
+    classe_code = request.GET.get('classe', '')
+    if request.user.is_staff and classe_code:
+        classe_tmp = Classe.objects.filter(code_classe=classe_code).first()
+        if classe_tmp:
+            classe_obj = classe_tmp
+
+    annee = request.GET.get('annee', '')
+    selected_type = request.GET.get('type', 'annuel')
+    selected_semestre = request.GET.get('semestre', '')
+    matricules_str = request.GET.get('matricules', '')
+    matricules = [m.strip() for m in matricules_str.split(',') if m.strip()]
+
+    if not matricules:
+        messages.warning(request, 'Aucun étudiant sélectionné.')
+        return redirect('jury_imprimables')
+
+    if not _require_deliberation_for_imprimable(request, jury, classe_obj, annee, selected_type, selected_semestre):
+        return redirect('jury_imprimables')
+
+    inscriptions = Inscription.objects.filter(
+        code_classe=classe_obj,
+        matricule_etudiant__matricule_et__in=matricules
+    ).select_related('matricule_etudiant')
+    if annee:
+        inscriptions = inscriptions.filter(annee_academique=annee)
+
+    if selected_type == 'semestriel':
+        palmares_type = 'semestriel'
+        palmares_semestre = int(selected_semestre) if selected_semestre else 1
+    else:
+        palmares_type = 'annuel'
+        palmares_semestre = None
+
+    def _mention_for_moyenne(moyenne):
+        if moyenne is None:
+            return 'A déterminer'
+        n = float(moyenne)
+        if n >= 18: return 'Excellent (A)'
+        if n >= 16: return 'Très bien (B)'
+        if n >= 14: return 'Bien (C)'
+        if n >= 12: return 'Assez Bien (D)'
+        if n >= 10: return 'Passable (E)'
+        if n >= 8:  return 'Insuffisant (F)'
+        return 'Insatisfaisant (G)'
+
+    type_delib = 'annuel' if palmares_type == 'annuel' else 'semestriel'
+    semestre_int = int(palmares_semestre) if palmares_semestre else None
+
+    etudiants_data = []
+    stats = {'admis': 0, 'comp': 0, 'aj': 0, 'def': 0, 'total': 0}
+
+    for inscription in inscriptions:
+        etudiant = inscription.matricule_etudiant
+        delib_data = _jury_compute_delib_ues(classe_obj, etudiant, type_delib, semestre_int, annee)
+        if not delib_data.get('rows'):
+            continue
+
+        moyenne = delib_data.get('moyenne', 0) or 0
+        credits_capitalises = delib_data.get('credits_valides', 0)
+        pourcentage = delib_data.get('pourcentage', 0) or 0
+        decision_code = delib_data.get('decision_code')
+
+        if decision_code == 'DEF':
+            decision = 'DEF'; stats['def'] += 1
+        elif decision_code == 'ADM':
+            decision = 'ADM'; stats['admis'] += 1
+        elif decision_code in ['ADMD', 'COMP']:
+            decision = 'COMP'; stats['comp'] += 1
+        else:
+            decision = 'AJ'; stats['aj'] += 1
+
+        stats['total'] += 1
+        mention = _mention_for_moyenne(moyenne)
+
+        etudiants_data.append({
+            'nom': etudiant.nom_complet or '',
+            'sexe': etudiant.sexe or '',
+            'nationalite': etudiant.nationalite or '',
+            'matricule': etudiant.matricule_et or '',
+            'moyenne': f"{moyenne:.2f}".replace('.', ','),
+            'pourcentage': f"{pourcentage:.1f}".replace('.', ',') + '%',
+            'credits_capitalises': str(credits_capitalises),
+            'decision': decision,
+            'mention': mention,
+        })
+
+    etudiants_data.sort(key=lambda x: float(str(x['moyenne']).replace(',', '.')), reverse=True)
+
+    if palmares_type == 'semestriel':
+        titre_type = f"PALMARES DES RESULTATS SEMESTRE {palmares_semestre} {annee}"
+    else:
+        titre_type = f"PALMARES DES RESULTATS ANNUEL {annee}"
+
+    classe_nom = classe_obj.code_classe if classe_obj else ''
+    return generer_palmares_pdf(request, classe_obj, annee, etudiants_data, stats, titre_type, classe_nom)

@@ -186,7 +186,7 @@ def generer_palmares_pdf(request, classe_obj, annee, etudiants_data, stats, titr
     # Récupérer les membres du jury de la classe
     from core.models import Jury, Enseignant
     try:
-        jury = Jury.objects.filter(code_classe=classe_obj).first()
+        jury = Jury.objects.filter(code_classe=classe_obj, annee_academique=annee).first()
         if jury:
             # Membre du jury
             if jury.membre:

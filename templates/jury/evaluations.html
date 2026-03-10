@@ -73,12 +73,8 @@
             <form method="get" class="row g-2 align-items-end" id="filterForm">
                 <div class="col-md-2">
                     <label class="form-label">Année académique</label>
-                    <select name="annee" class="form-select">
-                        <option value="">Toutes</option>
-                        {% for a in annees %}
-                            <option value="{{ a }}" {% if selected_annee == a %}selected{% endif %}>{{ a }}</option>
-                        {% endfor %}
-                    </select>
+                    <input type="hidden" name="annee" value="{{ selected_annee }}">
+                    <div class="form-control bg-light fw-bold">{{ selected_annee|default:"Non définie" }}</div>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Semestre</label>

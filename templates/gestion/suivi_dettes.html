@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+
+{% block title %}Suivi des Dettes - {{ etudiant.nom_complet }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1">
+                <i class="bi bi-exclamation-triangle me-2 text-warning"></i>
+                Suivi des Dettes
+            </h4>
+            <p class="text-muted mb-0">{{ etudiant.nom_complet }} — <code>{{ etudiant.matricule_et }}</code></p>
+        </div>
+        <div>
+            <a href="{% url 'historique_academique_etudiant' etudiant.matricule_et %}" class="btn btn-outline-primary">
+                <i class="bi bi-clock-history me-1"></i>Historique
+            </a>
+            <a href="{% url 'voir_etudiant' etudiant.matricule_et %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Profil
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-1">Total dettes</h6>
+                    <h2 class="mb-0 {% if nb_total > 0 %}text-warning{% else %}text-success{% endif %}">{{ nb_total }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm border-start border-danger border-3">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-1">En cours (à reprendre)</h6>
+                    <h2 class="mb-0 text-danger">{{ nb_compensees }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm border-start border-success border-3">
+                <div class="card-body text-center">
+                    <h6 class="text-muted mb-1">Validées (capitalisées)</h6>
+                    <h2 class="mb-0 text-success">{{ nb_liquidees }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tableau des dettes -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <strong><i class="bi bi-list-check me-2"></i>Détail des dettes</strong>
+            <span class="badge bg-secondary">{{ dettes|length }} entrée{{ dettes|length|pluralize:"s" }}</span>
+        </div>
+        <div class="card-body p-0">
+            {% if dettes %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Code Cours</th>
+                            <th>Intitulé</th>
+                            <th class="text-center">Crédits</th>
+                            <th>Classe d'origine</th>
+                            <th>Année académique</th>
+                            <th>Statut</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in dettes %}
+                        <tr class="{% if d.type_code == 'DETTE_LIQUIDEE' %}table-success{% endif %}">
+                            <td><strong>{{ d.code }}</strong></td>
+                            <td>{{ d.intitule }}</td>
+                            <td class="text-center">{{ d.credit }}</td>
+                            <td><span class="badge bg-secondary">{{ d.classe_origine }}</span></td>
+                            <td>{{ d.annee }}</td>
+                            <td>
+                                {% if d.type_code == 'DETTE_COMPENSEE' %}
+                                <span class="badge bg-danger">
+                                    <i class="bi bi-exclamation-circle me-1"></i>À reprendre
+                                </span>
+                                {% else %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-check-circle me-1"></i>Validée
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td><small class="text-muted">{{ d.date|date:"d/m/Y" }}</small></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-emoji-smile display-1 text-success"></i>
+                <p class="text-muted mt-3">Aucune dette enregistrée pour cet étudiant.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

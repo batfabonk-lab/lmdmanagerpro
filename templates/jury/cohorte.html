@@ -13,20 +13,70 @@
         {% endif %}
     </h4>
     <div>
+        {% if delib_annuelle_faite %}
+        <a href="{% url 'passage_automatique_classe_superieure' %}?classe={{ classe.code_classe }}&annee={{ annee }}" class="btn btn-info text-dark me-2">
+            <i class="bi bi-arrow-up-circle me-2"></i>Passage automatique
+        </a>
+        {% else %}
+        <span class="d-inline-block me-2" title="La délibération annuelle doit être effectuée avant d'activer le passage automatique.">
+            <button class="btn btn-info text-dark disabled" disabled>
+                <i class="bi bi-arrow-up-circle me-2"></i>Passage automatique
+            </button>
+        </span>
+        {% endif %}
         <span class="badge bg-primary me-2">{{ annee }}</span>
         <span class="badge bg-secondary">{{ total_etudiants }} étudiant{{ total_etudiants|pluralize }}</span>
     </div>
 </div>
 
-{% if etudiants_par_classe %}
-    {% for classe_label, etudiants in etudiants_par_classe.items %}
+{# ===================== ONGLETS ===================== #}
+{% with has_tabs=est_classe_montante %}
+{% if has_tabs or suivi_dettes %}
+<ul class="nav nav-tabs mb-4" id="cohorteTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-actuel" data-bs-toggle="tab" data-bs-target="#pane-actuel" type="button" role="tab" aria-selected="true">
+            <i class="bi bi-mortarboard me-1"></i>Résultats {{ classe.code_classe }} <span class="badge bg-primary ms-1">{{ annee }}</span>
+        </button>
+    </li>
+    {% if resultats_anterieurs %}
+    {% for ra in resultats_anterieurs %}
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-ant-{{ forloop.counter }}" data-bs-toggle="tab" data-bs-target="#pane-ant-{{ forloop.counter }}" type="button" role="tab" aria-selected="false">
+            <i class="bi bi-clock-history me-1"></i>{{ ra.classe_label }} <span class="badge bg-secondary ms-1">{{ ra.annee }}</span>
+            <span class="badge bg-light text-dark ms-1">{{ ra.nb_etudiants }}</span>
+        </button>
+    </li>
+    {% endfor %}
+    {% endif %}
+    {% if suivi_dettes %}
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-dettes" data-bs-toggle="tab" data-bs-target="#pane-dettes" type="button" role="tab" aria-selected="false">
+            <i class="bi bi-exclamation-triangle me-1"></i>Suivi des Dettes
+            {% if nb_dettes_en_cours %}
+                <span class="badge bg-warning text-dark ms-1">{{ nb_dettes_en_cours }} en cours</span>
+            {% endif %}
+            {% if nb_dettes_liquidees %}
+                <span class="badge bg-success ms-1">{{ nb_dettes_liquidees }} validée{{ nb_dettes_liquidees|pluralize }}</span>
+            {% endif %}
+        </button>
+    </li>
+    {% endif %}
+</ul>
+
+<div class="tab-content" id="cohorteTabContent">
+    <div class="tab-pane fade show active" id="pane-actuel" role="tabpanel">
+{% endif %}
+
+{# ===================== TABLEAU CLASSE ACTUELLE ===================== #}
+{% if classes_data %}
+    {% for c in classes_data %}
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
             <span>
                 <i class="bi bi-mortarboard me-2"></i>
-                <strong>{{ classe_label }}</strong>
+                <strong>{{ c.classe_label }}</strong>
             </span>
-            <span class="badge bg-light text-dark">{{ etudiants|length }} étudiant{{ etudiants|length|pluralize }}</span>
+            <span class="badge bg-light text-dark">{{ c.etudiants|length }} étudiant{{ c.etudiants|length|pluralize }}</span>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -36,16 +86,103 @@
                             <th style="width: 50px;">#</th>
                             <th>Matricule</th>
                             <th>Nom Complet</th>
+                            <th class="text-end">Moyenne</th>
+                            <th class="text-end">Pourcentage</th>
+                            <th class="text-end">Crédits</th>
+                            <th>Décision</th>
+                            <th>Mention</th>
+                            <th>Dettes</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for data in etudiants %}
-                        <tr>
-                            <td class="text-muted">{{ forloop.counter }}</td>
-                            <td><strong>{{ data.etudiant.matricule_et }}</strong></td>
-                            <td>{{ data.etudiant.nom_complet }}</td>
-                        </tr>
-                        {% endfor %}
+                        {% if c.palmares_rows %}
+                            {% for row in c.palmares_rows %}
+                                <tr>
+                                    <td class="text-muted">{{ row.rang }}</td>
+                                    <td><strong>{{ row.etudiant.matricule_et }}</strong></td>
+                                    <td>{{ row.etudiant.nom_complet }}</td>
+                                    <td class="text-end">{{ row.moyenne }}</td>
+                                    <td class="text-end">{{ row.pourcentage }}%</td>
+                                    <td class="text-end">{{ row.credits_capitalises }}/{{ row.credits_total }}</td>
+                                    <td>
+                                        {% if row.decision == 'ADM' %}
+                                            <span class="badge rounded-pill bg-success">
+                                                <i class="bi bi-check-circle me-1"></i>Admis
+                                            </span>
+                                        {% elif row.decision == 'COMP' %}
+                                            <span class="badge rounded-pill bg-info text-dark">
+                                                <i class="bi bi-arrow-repeat me-1"></i>Compensable / Admis avec dettes
+                                            </span>
+                                        {% elif row.decision == 'AJ' %}
+                                            <span class="badge rounded-pill bg-danger">
+                                                <i class="bi bi-x-circle me-1"></i>Ajourné
+                                            </span>
+                                        {% elif row.decision == 'DEF' %}
+                                            <span class="badge rounded-pill bg-dark">
+                                                <i class="bi bi-exclamation-octagon me-1"></i>Défaillant
+                                            </span>
+                                        {% else %}
+                                            <span class="badge rounded-pill bg-secondary">{{ row.decision }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ row.mention }}</td>
+                                    <td>
+                                        {% if row.dettes %}
+                                            <select class="form-select form-select-sm">
+                                                {% for d in row.dettes %}
+                                                    <option value="{{ d.code }}">
+                                                        {% if d.semestre %}S{{ d.semestre }}{% endif %}-{{ d.intitule_ue|default:"" }}-{{ d.intitule_ec|default:"" }}({{ d.credit }})
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <a href="{% url 'voir_etudiant' row.etudiant.matricule_et %}" class="btn btn-sm btn-outline-primary" title="Voir détails">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="{% url 'historique_academique_etudiant' row.etudiant.matricule_et %}" class="btn btn-sm btn-outline-info" title="Historique">
+                                                <i class="bi bi-clock-history"></i>
+                                            </a>
+                                            <a href="{% url 'suivi_dettes_etudiant' row.etudiant.matricule_et %}" class="btn btn-sm btn-outline-warning" title="Dettes">
+                                                <i class="bi bi-exclamation-triangle"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            {% for data in c.etudiants %}
+                                <tr>
+                                    <td class="text-muted">{{ forloop.counter }}</td>
+                                    <td><strong>{{ data.etudiant.matricule_et }}</strong></td>
+                                    <td>{{ data.etudiant.nom_complet }}</td>
+                                    <td class="text-end">-</td>
+                                    <td class="text-end">-</td>
+                                    <td class="text-end">-</td>
+                                    <td>-</td>
+                                    <td>-</td>
+                                    <td>-</td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <a href="{% url 'voir_etudiant' data.etudiant.matricule_et %}" class="btn btn-sm btn-outline-primary" title="Voir détails">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="{% url 'historique_academique_etudiant' data.etudiant.matricule_et %}" class="btn btn-sm btn-outline-info" title="Historique">
+                                                <i class="bi bi-clock-history"></i>
+                                            </a>
+                                            <a href="{% url 'suivi_dettes_etudiant' data.etudiant.matricule_et %}" class="btn btn-sm btn-outline-warning" title="Dettes">
+                                                <i class="bi bi-exclamation-triangle"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
@@ -58,4 +195,184 @@
         Aucun étudiant trouvé dans cette cohorte pour l'année {{ annee }}.
     </div>
 {% endif %}
+
+{# ===================== FERMETURE PANE-ACTUEL + AUTRES ONGLETS ===================== #}
+{% if has_tabs or suivi_dettes %}
+    </div>{# ferme pane-actuel #}
+
+    {# ---- Onglets classes antérieures ---- #}
+    {% if resultats_anterieurs %}
+    {% for ra in resultats_anterieurs %}
+    <div class="tab-pane fade" id="pane-ant-{{ forloop.counter }}" role="tabpanel">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                <span>
+                    <i class="bi bi-clock-history me-2"></i>
+                    <strong>Résultats {{ ra.classe_label }}</strong> — {{ ra.annee }}
+                </span>
+                <span class="badge bg-light text-dark">{{ ra.nb_etudiants }} étudiant{{ ra.nb_etudiants|pluralize }}</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th>Matricule</th>
+                                <th>Nom Complet</th>
+                                <th class="text-end">Moyenne</th>
+                                <th class="text-end">Pourcentage</th>
+                                <th class="text-end">Crédits</th>
+                                <th>Décision</th>
+                                <th>Mention</th>
+                                <th>Dettes</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in ra.palmares_rows %}
+                                <tr>
+                                    <td class="text-muted">{{ row.rang }}</td>
+                                    <td><strong>{{ row.etudiant.matricule_et }}</strong></td>
+                                    <td>{{ row.etudiant.nom_complet }}</td>
+                                    <td class="text-end">{{ row.moyenne }}</td>
+                                    <td class="text-end">{{ row.pourcentage }}%</td>
+                                    <td class="text-end">{{ row.credits_capitalises }}/{{ row.credits_total }}</td>
+                                    <td>
+                                        {% if row.decision == 'ADM' %}
+                                            <span class="badge rounded-pill bg-success">
+                                                <i class="bi bi-check-circle me-1"></i>Admis
+                                            </span>
+                                        {% elif row.decision == 'COMP' %}
+                                            <span class="badge rounded-pill bg-info text-dark">
+                                                <i class="bi bi-arrow-repeat me-1"></i>Compensé
+                                            </span>
+                                        {% elif row.decision == 'AJ' %}
+                                            <span class="badge rounded-pill bg-danger">
+                                                <i class="bi bi-x-circle me-1"></i>Ajourné
+                                            </span>
+                                        {% elif row.decision == 'DEF' %}
+                                            <span class="badge rounded-pill bg-dark">
+                                                <i class="bi bi-exclamation-octagon me-1"></i>Défaillant
+                                            </span>
+                                        {% else %}
+                                            <span class="badge rounded-pill bg-secondary">{{ row.decision }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ row.mention }}</td>
+                                    <td>
+                                        {% if row.dettes %}
+                                            <select class="form-select form-select-sm">
+                                                {% for d in row.dettes %}
+                                                    <option value="{{ d.code }}">
+                                                        {% if d.semestre %}S{{ d.semestre }}{% endif %}-{{ d.intitule_ue|default:"" }}-{{ d.intitule_ec|default:"" }}({{ d.credit }})
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <a href="{% url 'voir_etudiant' row.etudiant.matricule_et %}" class="btn btn-sm btn-outline-primary" title="Voir détails">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="{% url 'historique_academique_etudiant' row.etudiant.matricule_et %}" class="btn btn-sm btn-outline-info" title="Historique">
+                                                <i class="bi bi-clock-history"></i>
+                                            </a>
+                                            <a href="{% url 'suivi_dettes_etudiant' row.etudiant.matricule_et %}" class="btn btn-sm btn-outline-warning" title="Dettes">
+                                                <i class="bi bi-exclamation-triangle"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="10" class="text-center text-muted py-3">
+                                        Aucune donnée de résultat disponible
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {# ---- Onglet Suivi des Dettes ---- #}
+    {% if suivi_dettes %}
+    <div class="tab-pane fade" id="pane-dettes" role="tabpanel">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                <span>
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Suivi des Dettes — Cohorte {{ cohorte.code_cohorte }}</strong>
+                </span>
+                <span>
+                    {% if nb_dettes_en_cours %}
+                        <span class="badge bg-dark me-1">{{ nb_dettes_en_cours }} en cours</span>
+                    {% endif %}
+                    {% if nb_dettes_liquidees %}
+                        <span class="badge bg-success me-1">{{ nb_dettes_liquidees }} validée{{ nb_dettes_liquidees|pluralize }}</span>
+                    {% endif %}
+                </span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th>Matricule</th>
+                                <th>Nom Complet</th>
+                                <th>Code UE/EC</th>
+                                <th>Intitulé</th>
+                                <th class="text-center">Semestre</th>
+                                <th class="text-center">Classe d'origine</th>
+                                <th class="text-center">Année</th>
+                                <th class="text-center">Statut</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for d in suivi_dettes %}
+                            <tr>
+                                <td class="text-muted">{{ forloop.counter }}</td>
+                                <td><strong>{{ d.etudiant.matricule_et }}</strong></td>
+                                <td>{{ d.etudiant.nom_complet }}</td>
+                                <td><code>{{ d.code }}</code></td>
+                                <td>{{ d.intitule }}</td>
+                                <td class="text-center">{% if d.semestre %}S{{ d.semestre }}{% else %}-{% endif %}</td>
+                                <td class="text-center">{{ d.classe_origine }}</td>
+                                <td class="text-center">{{ d.annee }}</td>
+                                <td class="text-center">
+                                    {% if d.est_liquidee %}
+                                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Validée</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i>En cours</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-3">
+                                    Aucune dette enregistrée
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>{# ferme tab-content #}
+{% endif %}
+{% endwith %}
+
 {% endblock %}

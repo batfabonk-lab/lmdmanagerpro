@@ -46,6 +46,7 @@
                                 <th>Année Académique</th>
                                 <th>Classe</th>
                                 <th>Code Inscription</th>
+                                <th>Décision</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -54,6 +55,19 @@
                                 <td>{{ inscription.annee_academique }}</td>
                                 <td>{{ inscription.code_classe }}</td>
                                 <td>{{ inscription.code_inscription }}</td>
+                                <td>
+                                    {% if inscription.decision_annuelle == 'ADM' %}
+                                    <span class="badge bg-success">Admis</span>
+                                    {% elif inscription.decision_annuelle == 'ADMD' or inscription.decision_annuelle == 'COMP' %}
+                                    <span class="badge bg-info">{{ inscription.get_decision_annuelle_display }}</span>
+                                    {% elif inscription.decision_annuelle == 'AJ' %}
+                                    <span class="badge bg-danger">Ajourné</span>
+                                    {% elif inscription.decision_annuelle == 'DEF' %}
+                                    <span class="badge bg-dark">Défaillant</span>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -64,6 +78,50 @@
                 </div>
             </div>
             
+            <!-- Section UE par inscription -->
+            {% for code_insc, data in ues_par_inscription.items %}
+            <div class="card mb-3">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="bi bi-grid-3x3-gap me-2"></i>UE — {{ data.inscription.code_classe }} ({{ data.inscription.annee_academique }})
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-hover table-sm">
+                        <thead>
+                            <tr>
+                                <th>Code UE</th>
+                                <th>Intitulé</th>
+                                <th>Semestre</th>
+                                <th>Crédits</th>
+                                <th>Catégorie</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ue in data.ues %}
+                            <tr>
+                                <td><strong>{{ ue.code_ue }}</strong></td>
+                                <td>{{ ue.intitule_ue }}</td>
+                                <td>S{{ ue.semestre }}</td>
+                                <td>{{ ue.credit }}</td>
+                                <td><span class="badge bg-secondary">{{ ue.categorie }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% empty %}
+            <div class="card mb-3">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="bi bi-grid-3x3-gap me-2"></i>Unités d'Enseignement</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Aucune UE trouvée pour cet étudiant.</p>
+                </div>
+            </div>
+            {% endfor %}
+
             <div class="card">
                 <div class="card-header bg-success text-white">
                     <h5 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i>Évaluations</h5>
@@ -84,11 +142,28 @@
                         <tbody>
                             {% for eval in evaluations %}
                             <tr>
-                                <td>{{ eval.code_ue }}</td>
-                                <td>{{ eval.code_ec }}</td>
-                                <td>{{ eval.cc|floatformat:1 }}/20</td>
-                                <td>{{ eval.examen|floatformat:1 }}/20</td>
-                                <td class="fw-bold">{{ eval.calculer_note_finale|floatformat:1 }}/20</td>
+                                <td>
+                                    {% if eval.code_ue %}
+                                    <span class="badge bg-info text-dark">{{ eval.code_ue.code_ue }}</span>
+                                    <br><small class="text-muted">{{ eval.code_ue.intitule_ue }}</small>
+                                    {% elif eval.code_ec and eval.code_ec.code_ue %}
+                                    <span class="badge bg-info text-dark">{{ eval.code_ec.code_ue.code_ue }}</span>
+                                    <br><small class="text-muted">{{ eval.code_ec.code_ue.intitule_ue }}</small>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if eval.code_ec %}
+                                    <strong>{{ eval.code_ec.code_ec }}</strong>
+                                    <br><small class="text-muted">{{ eval.code_ec.intitule_ue }}</small>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ eval.cc|floatformat:1|default:"-" }}/20</td>
+                                <td>{{ eval.examen|floatformat:1|default:"-" }}/20</td>
+                                <td class="fw-bold">{{ eval.calculer_note_finale|floatformat:1|default:"-" }}/20</td>
                                 <td>
                                     {% if eval.statut == 'VALIDE' %}
                                     <span class="badge bg-success">Validé</span>
@@ -106,12 +181,54 @@
                 </div>
             </div>
             
+            <!-- Résumé des dettes -->
+            {% if nb_total_dettes > 0 %}
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-header bg-white">
+                    <strong><i class="bi bi-exclamation-triangle me-2 text-warning"></i>Dettes</strong>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-4">
+                            <div class="p-2">
+                                <small class="text-muted d-block">Total</small>
+                                <h4 class="mb-0 {% if nb_dettes_compensees > 0 %}text-warning{% else %}text-success{% endif %}">{{ nb_total_dettes }}</h4>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-2">
+                                <small class="text-muted d-block">À reprendre</small>
+                                <h4 class="mb-0 {% if nb_dettes_compensees > 0 %}text-danger{% else %}text-muted{% endif %}">{{ nb_dettes_compensees }}</h4>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-2">
+                                <small class="text-muted d-block">Validées</small>
+                                <h4 class="mb-0 text-success">{{ nb_dettes_liquidees }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                    {% if nb_dettes_compensees == 0 and nb_dettes_liquidees > 0 %}
+                    <div class="alert alert-success mt-3 mb-0">
+                        <i class="bi bi-check-circle me-2"></i>Toutes les dettes ont été validées.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
             <div class="mt-3">
                 <a href="{% url 'gestion_etudiants' %}" class="btn btn-secondary">
                     <i class="bi bi-arrow-left me-2"></i>Retour
                 </a>
                 <a href="{% url 'modifier_etudiant' etudiant.matricule_et %}" class="btn btn-warning">
                     <i class="bi bi-pencil me-2"></i>Modifier
+                </a>
+                <a href="{% url 'historique_academique_etudiant' etudiant.matricule_et %}" class="btn btn-primary">
+                    <i class="bi bi-clock-history me-2"></i>Historique Académique
+                </a>
+                <a href="{% url 'suivi_dettes_etudiant' etudiant.matricule_et %}" class="btn btn-outline-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Suivi Dettes
                 </a>
             </div>
         </div>

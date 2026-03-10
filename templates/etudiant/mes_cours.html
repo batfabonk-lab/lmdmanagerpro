@@ -67,6 +67,7 @@
                         <th>Crédits</th>
                         <th>Catégorie</th>
                         <th>Enseignant(s)</th>
+                        <th>Documents</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -93,6 +94,27 @@
                             {% endif %}
                         </td>
                         <td>{{ cours.enseignants|join:", " }}</td>
+                        <td>
+                            {% if cours.documents %}
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-danger dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    <i class="bi bi-file-earmark-pdf me-1"></i>{{ cours.documents|length }}
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    {% for doc in cours.documents %}
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'etudiant_telecharger_document' doc_id=doc.id %}">
+                                            <i class="bi bi-download me-2 text-primary"></i>{{ doc.titre }}
+                                            <small class="text-muted ms-1">({{ doc.get_type_document_display }})</small>
+                                        </a>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>

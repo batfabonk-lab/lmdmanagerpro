@@ -377,6 +377,21 @@ class JuryForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        code_classe = cleaned_data.get('code_classe')
+        annee_academique = cleaned_data.get('annee_academique')
+        if code_classe and annee_academique:
+            qs = Jury.objects.filter(code_classe=code_classe, annee_academique=annee_academique)
+            # En mode édition, exclure l'instance courante
+            if self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError(
+                    f'Un jury existe déjà pour la classe {code_classe} en {annee_academique}.'
+                )
+        return cleaned_data
 
 
 class EvaluationForm(forms.ModelForm):
@@ -481,7 +496,7 @@ class CohorteForm(forms.ModelForm):
     
     class Meta:
         model = Cohorte
-        fields = ['code_cohorte', 'lib_cohorte', 'debut']
+        fields = ['code_cohorte', 'lib_cohorte', 'code_mention', 'debut']
         widgets = {
             'code_cohorte': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -490,6 +505,9 @@ class CohorteForm(forms.ModelForm):
             'lib_cohorte': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Ex: Cohorte 2024-2025'
+            }),
+            'code_mention': forms.Select(attrs={
+                'class': 'form-select'
             }),
             'debut': forms.DateInput(attrs={
                 'class': 'form-control',

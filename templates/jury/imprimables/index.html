@@ -301,13 +301,44 @@
                         <i class="bi bi-person-badge me-1"></i>Imprimer les profils sélectionnés
                     </button>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="#" onclick="imprimerSelection('profils', 'annuel'); return false;">
+                        <li><a class="dropdown-item {% if not deliberations_disponibles.annuel %}disabled{% endif %}" href="#" 
+                               {% if deliberations_disponibles.annuel %}onclick="imprimerSelection('profils', 'annuel'); return false;"{% else %}tabindex="-1" aria-disabled="true" title="Aucune délibération annuelle disponible"{% endif %}>
                             <i class="bi bi-calendar-range me-2"></i>Annuel
+                            {% if not deliberations_disponibles.annuel %}<small class="text-muted">(Indisponible)</small>{% endif %}
                         </a></li>
                         {% for sem in semestres_choices %}
-                        <li><a class="dropdown-item" href="#" onclick="imprimerSelection('profils', 'semestriel', {{ sem }}); return false;">
-                            <i class="bi bi-1-circle me-2"></i>Semestre {{ sem }}
+                            {% for key, value in deliberations_disponibles.semestres.items %}
+                                {% if key == sem %}
+                                <li><a class="dropdown-item {% if not value %}disabled{% endif %}" href="#" 
+                                       {% if value %}onclick="imprimerSelection('profils', 'semestriel', {{ sem }}); return false;"{% else %}tabindex="-1" aria-disabled="true" title="Délibération S{{ sem }} non disponible"{% endif %}>
+                                    <i class="bi bi-{{ sem }}-circle me-2"></i>Semestre {{ sem }}
+                                    {% if not value %}<small class="text-muted">(ND)</small>{% endif %}
+                                </a></li>
+                                {% endif %}
+                            {% endfor %}
+                        {% endfor %}
+                    </ul>
+                </div>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-warning modern-btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" id="btnImprimerPalmares" disabled>
+                        <i class="bi bi-trophy me-1"></i>Imprimer le palmarès sélectionnés
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item {% if not deliberations_disponibles.annuel %}disabled{% endif %}" href="#" 
+                               {% if deliberations_disponibles.annuel %}onclick="imprimerSelection('palmares', 'annuel'); return false;"{% else %}tabindex="-1" aria-disabled="true" title="Aucune délibération annuelle disponible"{% endif %}>
+                            <i class="bi bi-calendar-range me-2"></i>Annuel
+                            {% if not deliberations_disponibles.annuel %}<small class="text-muted">(Indisponible)</small>{% endif %}
                         </a></li>
+                        {% for sem in semestres_choices %}
+                            {% for key, value in deliberations_disponibles.semestres.items %}
+                                {% if key == sem %}
+                                <li><a class="dropdown-item {% if not value %}disabled{% endif %}" href="#" 
+                                       {% if value %}onclick="imprimerSelection('palmares', 'semestriel', {{ sem }}); return false;"{% else %}tabindex="-1" aria-disabled="true" title="Délibération S{{ sem }} non disponible"{% endif %}>
+                                    <i class="bi bi-{{ sem }}-circle me-2"></i>Semestre {{ sem }}
+                                    {% if not value %}<small class="text-muted">(ND)</small>{% endif %}
+                                </a></li>
+                                {% endif %}
+                            {% endfor %}
                         {% endfor %}
                     </ul>
                 </div>
@@ -414,10 +445,12 @@ function updateButtons() {
     const checkboxes = document.querySelectorAll('.etudiant-checkbox:checked');
     const btnReleves = document.getElementById('btnImprimerReleves');
     const btnProfils = document.getElementById('btnImprimerProfils');
+    const btnPalmares = document.getElementById('btnImprimerPalmares');
     
     const hasSelection = checkboxes.length > 0;
     btnReleves.disabled = !hasSelection;
     btnProfils.disabled = !hasSelection;
+    btnPalmares.disabled = !hasSelection;
 }
 
 function imprimerSelection(docType, typeDelib, semestre) {
@@ -442,6 +475,8 @@ function imprimerSelection(docType, typeDelib, semestre) {
         url = '{% url "jury_imprimable_releves_selectionnes" %}?' + params.toString();
     } else if (docType === 'profils') {
         url = '{% url "jury_imprimable_profils_selectionnes" %}?' + params.toString();
+    } else if (docType === 'palmares') {
+        url = '{% url "jury_imprimable_palmares_selectionnes" %}?' + params.toString();
     }
     
     window.open(url, '_blank');

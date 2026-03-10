@@ -54,6 +54,14 @@
     <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
         <span><i class="bi bi-people me-2"></i>Liste des étudiants ({{ etudiants|length }})</span>
         <div class="d-flex align-items-center gap-2">
+            <!-- Bouton Télécharger la grille Excel -->
+            <a href="{% url 'jury_fiche_cotation_excel' cours.code annee %}" class="btn btn-sm btn-outline-success">
+                <i class="bi bi-download me-1"></i>Télécharger Excel
+            </a>
+            <!-- Bouton Importer Excel -->
+            <button type="button" class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#importExcelModal">
+                <i class="bi bi-upload me-1"></i>Importer Excel
+            </button>
             <button type="button" class="btn btn-sm btn-outline-info" id="btnToggleRattrapage" onclick="toggleRattrapageColumns()">
                 <i class="bi bi-plus-square me-1"></i>Insérer les rattrapages
             </button>
@@ -175,6 +183,42 @@
 <div class="alert alert-info mt-3">
     <i class="bi bi-info-circle me-2"></i>
     <strong>Note:</strong> En tant que jury, vous pouvez modifier toutes les notes (CC, Examen, Rattrapage, Rachat) et supprimer des évaluations.
+</div>
+
+<!-- Modal Import Excel -->
+<div class="modal fade" id="importExcelModal" tabindex="-1" aria-labelledby="importExcelModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'jury_importer_grille_evaluation' cours.code annee %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title" id="importExcelModalLabel">
+                        <i class="bi bi-upload me-2"></i>Importer les notes depuis Excel
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Attention :</strong> L'import remplacera les notes existantes pour les étudiants présents dans le fichier.
+                    </div>
+                    <div class="mb-3">
+                        <label for="fichier_excel" class="form-label"><strong>Fichier Excel (.xlsx)</strong></label>
+                        <input type="file" class="form-control" id="fichier_excel" name="fichier_excel" accept=".xlsx,.xls" required>
+                        <div class="form-text">
+                            Utilisez le fichier téléchargé via le bouton "Télécharger Excel" comme modèle.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-upload me-1"></i>Importer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <script>

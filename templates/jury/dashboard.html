@@ -10,10 +10,16 @@
             <div>
                 <i class="bi bi-people me-2"></i>
                 <strong>{{ jury.code_jury }}</strong> - Classe {{ classe }}
+                {% if jury.decision %}
+                <span class="badge bg-dark ms-2"><i class="bi bi-file-earmark-text me-1"></i>{{ jury.decision }}</span>
+                {% endif %}
             </div>
             <div class="btn-group">
                 <a href="{% url 'jury_grille_cours' %}" class="btn btn-sm btn-info">
                     <i class="bi bi-table me-1"></i>Grille par Cours
+                </a>
+                <a href="{% url 'jury_dashboard_grille_pdf' %}" class="btn btn-sm btn-outline-secondary" target="_blank" title="Imprimer la grille">
+                    <i class="bi bi-printer-fill me-1"></i>Imprimer
                 </a>
                 <a href="{% url 'jury_deliberer' %}" class="btn btn-sm btn-dark">
                     <i class="bi bi-clipboard-check me-1"></i>Délibérer
@@ -61,7 +67,7 @@
 </div>
 
 <!-- Statistiques -->
-<div class="row mb-4">
+<div class="row mb-4 g-3" style="max-width: 60%; margin: 0 auto;">
     <div class="col-md-3">
         <div class="card bg-info text-white border-0">
             <div class="card-body text-center py-3">

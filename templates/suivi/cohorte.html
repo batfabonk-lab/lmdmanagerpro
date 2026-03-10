@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}Suivi Cohorte{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-graph-up me-2"></i>Suivi des UE par Cohorte</h2>
+</div>
+
+<!-- Formulaire de sélection de cohorte -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <i class="bi bi-funnel me-2"></i>Sélectionner une Cohorte
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-8">
+                <label class="form-label fw-bold">Cohorte</label>
+                <select name="cohorte" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- Sélectionner une cohorte --</option>
+                    {% for cohorte in cohortes %}
+                    <option value="{{ cohorte.code_cohorte }}" {% if cohorte_selectionnee and cohorte.code_cohorte == cohorte_selectionnee.code_cohorte %}selected{% endif %}>
+                        {{ cohorte.code_cohorte }} - {{ cohorte.lib_cohorte }}
+                        {% if cohorte.code_mention %} ({{ cohorte.code_mention }}){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if cohorte_selectionnee %}
+<!-- Informations sur la cohorte sélectionnée -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <h6 class="card-title">Cohorte</h6>
+                <h4 class="mb-0">{{ cohorte_selectionnee.code_cohorte }}</h4>
+                <small>{{ cohorte_selectionnee.lib_cohorte }}</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <h6 class="card-title">Mention</h6>
+                <h4 class="mb-0">{{ cohorte_selectionnee.code_mention|default:"-" }}</h4>
+                {% if cohorte_selectionnee.code_mention %}
+                <small>{{ cohorte_selectionnee.code_mention.designation_mention }}</small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <h6 class="card-title">Total UE</h6>
+                <h4 class="mb-0">{{ ues.count }}</h4>
+                <small>Unités d'Enseignement</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tableau des UE -->
+<div class="card">
+    <div class="card-header">
+        <i class="bi bi-table me-2"></i>Liste des Unités d'Enseignement (UE)
+    </div>
+    <div class="card-body">
+        {% if ues %}
+        <div class="table-responsive">
+            <table class="table table-hover table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Code UE</th>
+                        <th>Intitulé</th>
+                        <th>Crédits</th>
+                        <th>Semestre</th>
+                        <th>Seuil</th>
+                        <th>Catégorie</th>
+                        <th>Classe</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ue in ues %}
+                    <tr>
+                        <td><strong>{{ ue.code_ue }}</strong></td>
+                        <td>{{ ue.intitule_ue }}</td>
+                        <td><span class="badge bg-primary">{{ ue.credit }}</span></td>
+                        <td><span class="badge bg-info">S{{ ue.semestre }}</span></td>
+                        <td>{{ ue.seuil }}%</td>
+                        <td>
+                            {% if ue.categorie == 'A' %}
+                            <span class="badge bg-success">Catégorie A</span>
+                            {% elif ue.categorie == 'B' %}
+                            <span class="badge bg-warning">Catégorie B</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ ue.categorie }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ ue.classe|default:"-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <td colspan="2" class="text-end fw-bold">Total Crédits :</td>
+                        <td colspan="5">
+                            <span class="badge bg-primary fs-6">
+                                {{ total_credits }} crédits
+                            </span>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            {% if cohorte_selectionnee.code_mention %}
+            Aucune UE trouvée pour la mention <strong>{{ cohorte_selectionnee.code_mention }}</strong> de cette cohorte.
+            {% else %}
+            Cette cohorte n'a pas de mention associée. Veuillez d'abord associer une mention à cette cohorte.
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>
+    Veuillez sélectionner une cohorte pour afficher les UE correspondantes.
+</div>
+{% endif %}
+
+{% endblock %}

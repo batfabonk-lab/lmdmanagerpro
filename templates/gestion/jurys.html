@@ -36,6 +36,7 @@
                         <th>Membre</th>
                         <th>Délibérations</th>
                         <th>Décision DG</th>
+                        <th>Publication</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -56,6 +57,13 @@
                         </td>
                         <td>{{ item.jury.decision|default:"-" }}</td>
                         <td>
+                            {% if item.jury.resultat_publie %}
+                            <span class="badge bg-success">Publié</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Non publié</span>
+                            {% endif %}
+                        </td>
+                        <td>
                             <div class="btn-group" role="group">
                                 <a href="{% url 'modifier_jury' item.jury.code_jury %}" class="btn btn-sm btn-warning" title="Modifier">
                                     <i class="bi bi-pencil"></i>
@@ -67,7 +75,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="9" class="text-center text-muted">Aucun jury trouvé</td></tr>
+                    <tr><td colspan="10" class="text-center text-muted">Aucun jury trouvé</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

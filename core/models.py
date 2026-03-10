@@ -52,8 +52,8 @@ class Departement(models.Model):
 # Unité d'Enseignement (UE)
 class UE(models.Model):
     CATEGORIE_CHOICES = [
-        ('A', 'Catégorie A'),
-        ('B', 'Catégorie B'),
+        ('A', 'A'),
+        ('B', 'B'),
     ]
     
     code_ue = models.CharField(max_length=20, primary_key=True, verbose_name='Code UE')
@@ -119,6 +119,7 @@ class Cohorte(models.Model):
     code_cohorte = models.CharField(max_length=20, primary_key=True, verbose_name='Code Cohorte')
     lib_cohorte = models.CharField(max_length=200, verbose_name='Libellé')
     debut = models.DateField(verbose_name='Date de début')
+    code_mention = models.ForeignKey('reglage.Mention', on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Mention')
     
     class Meta:
         verbose_name = 'Cohorte'
@@ -235,11 +236,21 @@ class Classe(models.Model):
 
 # Inscription
 class Inscription(models.Model):
+    DECISION_CHOICES = [
+        ('ADM', 'Admis'),
+        ('ADMD', 'Admis avec dette'),
+        ('COMP', 'Compensé'),
+        ('AJ', 'Ajourné'),
+        ('DEF', 'Défaillant'),
+    ]
+    
     code_inscription = models.CharField(max_length=20, primary_key=True, verbose_name='Code Inscription')
     matricule_etudiant = models.ForeignKey(Etudiant, on_delete=models.CASCADE, verbose_name='Étudiant')
     annee_academique = models.CharField(max_length=20, verbose_name='Année Académique')
     code_classe = models.ForeignKey('reglage.Classe', on_delete=models.CASCADE, verbose_name='Classe')
     cohorte = models.ForeignKey(Cohorte, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Cohorte')
+    date_inscription = models.DateTimeField(default=timezone.now, verbose_name="Date d'inscription")
+    decision_annuelle = models.CharField(max_length=10, choices=DECISION_CHOICES, null=True, blank=True, verbose_name='Décision annuelle')
 
     class Meta:
         verbose_name = 'Inscription'
@@ -260,10 +271,15 @@ class Jury(models.Model):
     annee_academique = models.CharField(max_length=20, verbose_name='Année Académique', blank=True, null=True)
     id_lgn = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Compte Utilisateur')
     decision = models.CharField(max_length=200, blank=True, null=True, verbose_name='Décision DG (nomination des membres)')
+    resultat_publie = models.BooleanField(default=False, verbose_name='Résultats publiés')
+    date_publication = models.DateTimeField(blank=True, null=True, verbose_name='Date de publication')
+    password_pres = models.CharField(max_length=50, blank=True, null=True, verbose_name='Mot de passe Président')
+    password_sec = models.CharField(max_length=50, blank=True, null=True, verbose_name='Mot de passe Secrétaire')
     
     class Meta:
         verbose_name = 'Jury'
         verbose_name_plural = 'Jurys'
+        unique_together = [('code_classe', 'annee_academique')]
     
     def __str__(self):
         return f"{self.code_jury} - {self.code_classe}"
@@ -395,6 +411,7 @@ class Evaluation(models.Model):
 class InscriptionUE(models.Model):
     TYPE_CHOICES = [
         ('DETTE_COMPENSEE', 'Dette compensée (à reprendre)'),
+        ('DETTE_LIQUIDEE', 'Dette liquidée (capitalisée)'),
     ]
     
     code_inscription_ue = models.AutoField(primary_key=True, verbose_name='ID Inscription UE')
@@ -1044,6 +1061,35 @@ class FichierRecours(models.Model):
         if not self.nom_fichier:
             self.nom_fichier = self.fichier.name
         super().save(*args, **kwargs)
+
+
+class DocumentCours(models.Model):
+    """Documents PDF postés par les enseignants pour leurs cours"""
+    TYPE_DOCUMENT_CHOICES = [
+        ('COURS', 'Support de cours'),
+        ('TD', 'Travaux dirigés'),
+        ('TP', 'Travaux pratiques'),
+        ('DESCRIPTIF', 'Descriptif du cours'),
+        ('EXERCICE', 'Exercices'),
+        ('CORRIGE', 'Corrigé'),
+        ('AUTRE', 'Autre'),
+    ]
+    
+    enseignant = models.ForeignKey(Enseignant, on_delete=models.CASCADE, verbose_name='Enseignant')
+    code_cours = models.CharField(max_length=20, verbose_name='Code Cours')
+    annee_academique = models.CharField(max_length=20, verbose_name='Année Académique')
+    titre = models.CharField(max_length=255, verbose_name='Titre du document')
+    type_document = models.CharField(max_length=20, choices=TYPE_DOCUMENT_CHOICES, default='COURS', verbose_name='Type')
+    fichier = models.FileField(upload_to='documents_cours/', verbose_name='Fichier PDF')
+    date_ajout = models.DateTimeField(auto_now_add=True, verbose_name="Date d'ajout")
+    
+    class Meta:
+        verbose_name = 'Document de cours'
+        verbose_name_plural = 'Documents de cours'
+        ordering = ['-date_ajout']
+    
+    def __str__(self):
+        return f"{self.titre} ({self.code_cours})"
 
 
 class Notification(models.Model):

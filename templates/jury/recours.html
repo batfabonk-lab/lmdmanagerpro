@@ -132,22 +132,10 @@
                         <!-- Décision finale : lecture seule par défaut -->
                         <td>
                             <div class="recours-display-{{ forloop.counter }}">
-                                <small>
-                                {% if rec.decision_finale == 'ACCEPTE' %}<span class="badge bg-success">Accepté</span>
-                                {% elif rec.decision_finale == 'REJETE' %}<span class="badge bg-danger">Rejeté</span>
-                                {% elif rec.decision_finale == 'PARTIELLEMENT_ACCEPTE' %}<span class="badge bg-warning text-dark">Part. accepté</span>
-                                {% elif rec.decision_finale == 'SANS_SUITE' %}<span class="badge bg-secondary">Sans suite</span>
-                                {% else %}—{% endif %}
-                                </small>
+                                <small>{{ rec.decision_finale|default:"—" }}</small>
                             </div>
                             <div class="recours-edit-{{ forloop.counter }} no-print" style="display:none;">
-                                    <select name="decision_finale" class="form-select form-select-sm mb-1" style="font-size: 11px;">
-                                        <option value="">---</option>
-                                        <option value="ACCEPTE" {% if rec.decision_finale == 'ACCEPTE' %}selected{% endif %}>Accepté</option>
-                                        <option value="REJETE" {% if rec.decision_finale == 'REJETE' %}selected{% endif %}>Rejeté</option>
-                                        <option value="PARTIELLEMENT_ACCEPTE" {% if rec.decision_finale == 'PARTIELLEMENT_ACCEPTE' %}selected{% endif %}>Partiellement accepté</option>
-                                        <option value="SANS_SUITE" {% if rec.decision_finale == 'SANS_SUITE' %}selected{% endif %}>Classé sans suite</option>
-                                    </select>
+                                    <input type="text" name="decision_finale" class="form-control form-control-sm mb-1" style="font-size: 11px;" placeholder="Saisir la décision..." value="{{ rec.decision_finale }}">
                                     <button type="submit" class="btn btn-sm btn-success w-100" style="font-size: 11px;">
                                         <i class="bi bi-check-lg"></i>
                                     </button>

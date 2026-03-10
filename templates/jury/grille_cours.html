@@ -90,10 +90,16 @@
                                 {% endif %}
                             </td>
                             <td class="text-center align-middle">
-                                <a href="{% url 'jury_evaluer_cours' code_cours=cours.code annee=annee %}" 
-                                   class="btn btn-sm btn-primary">
-                                    <i class="bi bi-pencil-square me-1"></i>Voir / Modifier
-                                </a>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'jury_evaluer_cours' code_cours=cours.code annee=annee %}" 
+                                       class="btn btn-primary" title="Voir / Modifier les notes">
+                                        <i class="bi bi-pencil-square me-1"></i>Voir / Modifier
+                                    </a>
+                                    <a href="{% url 'jury_fiche_cotation_excel' code_cours=cours.code annee=annee %}" 
+                                       class="btn btn-success" title="Télécharger la fiche de cotation Excel">
+                                        <i class="bi bi-file-earmark-excel me-1"></i>Excel
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}

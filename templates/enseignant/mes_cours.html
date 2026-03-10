@@ -33,30 +33,21 @@
     </div>
 </div>
 
-<!-- Filtre par année académique -->
-<div class="card mb-3">
-    <div class="card-body py-2">
-        <form method="get" class="row g-2 align-items-center">
-            <div class="col-md-4">
-                <select name="annee" class="form-select" onchange="this.form.submit()">
-                    <option value="">-- Toutes les années --</option>
-                    {% for annee in annees %}
-                    <option value="{{ annee.code_anac }}" {% if annee_filter == annee.code_anac %}selected{% endif %}>
-                        {{ annee.designation_anac }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-            {% if annee_filter %}
-            <div class="col-md-2">
-                <a href="{% url 'enseignant_mes_cours' %}" class="btn btn-outline-secondary w-100">
-                    <i class="bi bi-x me-1"></i>Réinitialiser
-                </a>
-            </div>
-            {% endif %}
-        </form>
-    </div>
-</div>
+<!-- Filtre par année académique (onglets) -->
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <a class="nav-link {% if not annee_filter %}active{% endif %}" href="?annee=">
+            <i class="bi bi-collection me-1"></i>Toutes les années
+        </a>
+    </li>
+    {% for annee in annees %}
+    <li class="nav-item">
+        <a class="nav-link {% if annee_filter == annee.code_anac %}active{% endif %}" href="?annee={{ annee.code_anac }}">
+            {{ annee.designation_anac }}
+        </a>
+    </li>
+    {% endfor %}
+</ul>
 
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
@@ -97,6 +88,9 @@
                         <td>
                             <a href="{% url 'enseignant_evaluer_cours' code_cours=attr.code_cours annee=attr.annee_academique %}" class="btn btn-sm btn-primary" title="Évaluer ce cours">
                                 <i class="bi bi-pencil-square me-1"></i>Évaluer
+                            </a>
+                            <a href="{% url 'enseignant_documents_cours' code_cours=attr.code_cours annee=attr.annee_academique %}" class="btn btn-sm btn-outline-danger" title="Documents PDF">
+                                <i class="bi bi-file-earmark-pdf me-1"></i>Documents
                             </a>
                         </td>
                     </tr>

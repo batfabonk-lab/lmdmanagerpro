@@ -111,12 +111,9 @@
                     <h5 class="mb-0">Liste des Utilisateurs</h5>
                 </div>
                 <div class="col-md-3 text-center">
-                    <form id="bulkDeleteForm" method="post" action="{% url 'supprimer_utilisateurs_selection' %}" class="d-inline">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Supprimer tous les utilisateurs sélectionnés ?');">
-                            <i class="bi bi-trash me-1"></i>Supprimer la sélection
-                        </button>
-                    </form>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="if(confirm('Supprimer tous les utilisateurs sélectionnés ?')) document.getElementById('bulkDeleteForm').submit();">
+                        <i class="bi bi-trash me-1"></i>Supprimer la sélection
+                    </button>
                 </div>
                 <div class="col-md-3">
                     <select class="form-select form-select-sm" id="roleFilter">
@@ -133,7 +130,7 @@
             </div>
         </div>
         <div class="card-body p-0">
-            <form method="post" action="{% url 'supprimer_utilisateurs_selection' %}">
+            <form id="bulkDeleteForm" method="post" action="{% url 'supprimer_utilisateurs_selection' %}">
                 {% csrf_token %}
                 <table class="table table-hover mb-0" id="utilisateursTable">
                     <thead class="table-light">
@@ -224,6 +221,12 @@
                                         <i class="bi bi-key"></i>
                                     </a>
                                     {% if user != request.user %}
+                                    <a href="{% url 'toggle_utilisateur_actif' user.id %}"
+                                       class="btn {% if user.is_active %}btn-outline-success{% else %}btn-outline-danger{% endif %}"
+                                       title="{% if user.is_active %}Désactiver le compte{% else %}Activer le compte{% endif %}"
+                                       onclick="return confirm('{% if user.is_active %}Désactiver le compte de {{ user.username }} ?{% else %}Activer le compte de {{ user.username }} ?{% endif %}');">
+                                        <i class="bi {% if user.is_active %}bi-unlock-fill text-success{% else %}bi-lock-fill text-danger{% endif %}"></i>
+                                    </a>
                                     <a href="{% url 'supprimer_utilisateur' user.id %}" class="btn btn-outline-danger" title="Supprimer">
                                         <i class="bi bi-trash"></i>
                                     </a>

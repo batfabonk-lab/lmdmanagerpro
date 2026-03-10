@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+
+{% block title %}Historique Académique - {{ etudiant.nom_complet }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- En-tête -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="mb-1">
+                <i class="bi bi-clock-history me-2 text-primary"></i>
+                Historique Académique
+            </h4>
+            <p class="text-muted mb-0">{{ etudiant.nom_complet }} — <code>{{ etudiant.matricule_et }}</code></p>
+        </div>
+        <div>
+            <a href="{% url 'suivi_dettes_etudiant' etudiant.matricule_et %}" class="btn btn-outline-warning">
+                <i class="bi bi-exclamation-triangle me-1"></i>Suivi des dettes
+            </a>
+            <a href="{% url 'voir_etudiant' etudiant.matricule_et %}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Profil
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats résumé -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm bg-primary text-white">
+                <div class="card-body text-center">
+                    <h6 class="mb-1">Années d'inscription</h6>
+                    <h2 class="mb-0">{{ nb_annees }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm bg-success text-white">
+                <div class="card-body text-center">
+                    <h6 class="mb-1">Crédits cumulés</h6>
+                    <h2 class="mb-0">{{ credits_cumules }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm bg-info text-white">
+                <div class="card-body text-center">
+                    <h6 class="mb-1">Classe actuelle</h6>
+                    <h2 class="mb-0">{% if parcours %}{{ parcours.last.classe }}{% else %}-{% endif %}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm bg-secondary text-white">
+                <div class="card-body text-center">
+                    <h6 class="mb-1">Dernière année</h6>
+                    <h2 class="mb-0" style="font-size: 1.3rem;">{% if parcours %}{{ parcours.last.annee }}{% else %}-{% endif %}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline du parcours -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white">
+            <strong><i class="bi bi-diagram-3 me-2"></i>Parcours chronologique</strong>
+        </div>
+        <div class="card-body p-0">
+            {% if parcours %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 40px;" class="text-center">#</th>
+                            <th>Année Académique</th>
+                            <th>Classe</th>
+                            <th>Niveau</th>
+                            <th>Cohorte</th>
+                            <th class="text-center">Crédits validés</th>
+                            <th class="text-center">Dettes</th>
+                            <th>Décision</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in parcours %}
+                        <tr>
+                            <td class="text-center text-muted">{{ forloop.counter }}</td>
+                            <td><strong>{{ p.annee }}</strong></td>
+                            <td><span class="badge bg-primary">{{ p.classe }}</span></td>
+                            <td><span class="badge bg-light text-dark">{{ p.niveau }}</span></td>
+                            <td>
+                                {% if p.cohorte != '-' %}
+                                <small class="text-muted">{{ p.cohorte }}</small>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <strong>{{ p.credits_valides }}</strong><small class="text-muted">/60</small>
+                            </td>
+                            <td class="text-center">
+                                {% if p.dettes > 0 %}
+                                <span class="badge bg-warning text-dark">{{ p.dettes }}</span>
+                                {% else %}
+                                <span class="text-muted">0</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if p.decision_code == 'ADM' %}
+                                    <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>{{ p.decision }}</span>
+                                {% elif p.decision_code == 'ADMD' or p.decision_code == 'COMP' %}
+                                    <span class="badge bg-info"><i class="bi bi-check2-circle me-1"></i>{{ p.decision }}</span>
+                                {% elif p.decision_code == 'AJ' %}
+                                    <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>{{ p.decision }}</span>
+                                {% elif p.decision_code == 'DEF' %}
+                                    <span class="badge bg-dark"><i class="bi bi-dash-circle me-1"></i>{{ p.decision }}</span>
+                                {% else %}
+                                    <span class="text-muted"><i class="bi bi-hourglass-split me-1"></i>En cours</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-inbox display-1 text-muted"></i>
+                <p class="text-muted mt-3">Aucune inscription trouvée pour cet étudiant.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Visualisation progression -->
+    {% if parcours %}
+    <div class="card border-0 shadow-sm mt-4">
+        <div class="card-header bg-white">
+            <strong><i class="bi bi-graph-up me-2"></i>Progression visuelle</strong>
+        </div>
+        <div class="card-body">
+            <div class="d-flex align-items-center flex-wrap gap-2">
+                {% for p in parcours %}
+                <div class="d-flex align-items-center">
+                    <div class="text-center px-3 py-2 rounded-3 
+                        {% if p.decision_code == 'ADM' %}bg-success bg-opacity-10 border border-success
+                        {% elif p.decision_code == 'ADMD' or p.decision_code == 'COMP' %}bg-info bg-opacity-10 border border-info
+                        {% elif p.decision_code == 'AJ' or p.decision_code == 'DEF' %}bg-danger bg-opacity-10 border border-danger
+                        {% else %}bg-light border{% endif %}"
+                        style="min-width: 100px;">
+                        <div class="fw-bold">{{ p.classe }}</div>
+                        <small class="text-muted">{{ p.annee }}</small>
+                        <div>
+                            {% if p.decision_code %}
+                            <span class="badge {% if p.decision_code == 'ADM' %}bg-success{% elif p.decision_code == 'ADMD' or p.decision_code == 'COMP' %}bg-info{% elif p.decision_code == 'AJ' or p.decision_code == 'DEF' %}bg-danger{% else %}bg-secondary{% endif %}" style="font-size: 0.65rem;">
+                                {{ p.decision_code }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if not forloop.last %}
+                    <i class="bi bi-arrow-right text-muted mx-1"></i>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

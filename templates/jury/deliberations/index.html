@@ -269,6 +269,8 @@
                             <td class="text-center">
                                 {% if eval.statut == 'VALIDE' %}
                                     <span class="badge bg-success">Validé</span>
+                                {% elif eval.statut == 'VALIDE_COMP' %}
+                                    <span class="badge bg-success"><i class="bi bi-arrow-left-right me-1"></i>Validé (C)</span>
                                 {% else %}
                                     <span class="badge bg-danger">Non validé</span>
                                 {% endif %}

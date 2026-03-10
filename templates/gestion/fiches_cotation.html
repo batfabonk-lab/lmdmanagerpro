@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+
+{% block title %}Fiches de Cotation{% endblock %}
+
+{% block content %}
+<div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);">
+    <div class="card-body text-white py-4">
+        <div class="d-flex align-items-center">
+            <i class="bi bi-file-earmark-text display-5 me-3 opacity-75"></i>
+            <div>
+                <h2 class="mb-1 fw-bold">Fiches de Cotation</h2>
+                <p class="mb-0 opacity-75">Sélectionnez une classe et une année pour imprimer toutes les fiches de cotation vides des enseignants</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+{% endif %}
+
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header py-3" style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);">
+                <h5 class="mb-0 text-white fw-bold">
+                    <i class="bi bi-printer me-2"></i>Paramètres d'impression
+                </h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="get" action="{% url 'gestion_fiches_cotation_pdf' %}" target="_blank">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-building me-1 text-primary"></i>Classe <span class="text-danger">*</span>
+                            </label>
+                            <select name="classe" class="form-select" required>
+                                <option value="">-- Sélectionner une classe --</option>
+                                {% for classe in classes %}
+                                <option value="{{ classe.code_classe }}">{{ classe.code_classe }} – {{ classe.designation_classe }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-calendar me-1 text-primary"></i>Année académique <span class="text-danger">*</span>
+                            </label>
+                            <select name="annee" class="form-select" required>
+                                <option value="">-- Sélectionner une année --</option>
+                                {% for annee in annees %}
+                                <option value="{{ annee.code_anac }}" {% if annee.code_anac == annee_default %}selected{% endif %}>
+                                    {{ annee.code_anac }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-semibold">
+                                <i class="bi bi-filter me-1 text-primary"></i>Semestre
+                            </label>
+                            <select name="semestre" class="form-select">
+                                <option value="">Tous les semestres</option>
+                                {% for s in semestres %}
+                                <option value="{{ s }}">S{{ s }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mt-4 mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Information :</strong> Le PDF généré contiendra une fiche par cours attribué dans la classe sélectionnée.
+                        Chaque fiche inclut la liste des étudiants inscrits avec les colonnes CC et Examen vides à remplir.
+                    </div>
+
+                    <div class="d-flex justify-content-end mt-4 gap-2">
+                        <a href="{% url 'home' %}" class="btn btn-outline-secondary btn-lg">
+                            <i class="bi bi-arrow-left me-1"></i>Retour
+                        </a>
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-printer me-2"></i>Imprimer les fiches PDF
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

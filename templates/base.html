@@ -14,9 +14,14 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
     <!-- Bootstrap Icons via CDN -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <!-- Google Fonts: Roboto -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     
     <style>
         body {
+            font-family: 'Roboto', sans-serif;
             font-size: .875rem;
         }
 
@@ -616,12 +621,22 @@
                                         <i class="bi bi-list-check"></i> Liste Attributions
                                     </a>
                                 </li>
+                                <li class="nav-item">
+                                    <a class="nav-link {% if 'fiches_cotation' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'gestion_fiches_cotation' %}">
+                                        <i class="bi bi-file-earmark-text"></i> Fiches de cotation
+                                    </a>
+                                </li>
                             </ul>
                         </div>
 
                                 <li class="nav-item">
                                     <a class="nav-link {% if 'section' in request.resolver_match.url_name or 'departement' in request.resolver_match.url_name or 'mention' in request.resolver_match.url_name or 'niveau' in request.resolver_match.url_name or 'semestre' in request.resolver_match.url_name or 'classe' in request.resolver_match.url_name or 'annee' in request.resolver_match.url_name or 'grade' in request.resolver_match.url_name or 'fonction' in request.resolver_match.url_name or 'typecharge' in request.resolver_match.url_name or 'categorie' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'gestion_sections' %}">
                                         <i class="bi bi-sliders"></i> Réglage
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link {% if request.resolver_match.url_name == 'suivi_cohorte' %}active{% endif %}" href="{% url 'suivi_cohorte' %}">
+                                        <i class="bi bi-graph-up"></i> Suivi
                                     </a>
                                 </li>
                                 {% if user.role == 'GESTIONNAIRE' or user.role == 'ADMIN' %}

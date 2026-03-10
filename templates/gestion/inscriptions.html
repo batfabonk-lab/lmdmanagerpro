@@ -11,6 +11,9 @@
         <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#addModal">
             <i class="bi bi-plus-circle me-2"></i>Ajouter
         </button>
+        <a href="{% url 'gestion_inscriptions_pdf' %}?classe={{ classe_filter }}&annee={{ annee_filter }}&date_filter={{ date_filter }}" class="btn btn-secondary me-2" target="_blank">
+            <i class="bi bi-printer me-2"></i>Imprimer
+        </a>
         {% if user.role != 'GESTIONNAIRE' %}
         <a href="{% url 'supprimer_tout_inscriptions' %}" class="btn btn-danger">
             <i class="bi bi-trash me-2"></i>Supprimer tout
@@ -54,7 +57,17 @@
                     {% endfor %}
                 </select>
             </div>
-            {% if classe_filter or annee_filter %}
+            <div class="col-md-3">
+                <select name="date_filter" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- Toutes les dates --</option>
+                    {% for d in dates_distinctes %}
+                    <option value="{{ d|date:'Y-m-d' }}" {% if date_filter == d|date:'Y-m-d' %}selected{% endif %}>
+                        {{ d|date:"d/m/Y" }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% if classe_filter or annee_filter or date_filter %}
             <div class="col-md-2">
                 <a href="{% url 'gestion_inscriptions' %}" class="btn btn-outline-secondary w-100">
                     <i class="bi bi-x me-1"></i>Réinitialiser
@@ -73,6 +86,7 @@
                 <thead class="table-dark">
                     <tr>
                         <th>Code Inscription</th>
+                        <th>Date</th>
                         <th>Année Académique</th>
                         <th>Étudiant</th>
                         <th>Classe</th>
@@ -84,6 +98,7 @@
                     {% for inscription in inscriptions %}
                     <tr>
                         <td><strong>{{ inscription.code_inscription }}</strong></td>
+                        <td>{{ inscription.date_inscription|date:"d/m/Y" }}</td>
                         <td><span class="badge bg-info">{{ inscription.annee_academique }}</span></td>
                         <td>{{ inscription.matricule_etudiant.nom_complet }}</td>
                         <td><span class="badge bg-secondary">{{ inscription.code_classe }}</span></td>
@@ -109,7 +124,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6" class="text-center text-muted">Aucune inscription trouvée</td></tr>
+                    <tr><td colspan="7" class="text-center text-muted">Aucune inscription trouvée</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

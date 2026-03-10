@@ -22,7 +22,7 @@ from .models import (
     User, Etudiant, Enseignant, Jury, Evaluation, 
     Inscription, UE, EC, Cohorte, Departement, Attribution, ParametreEvaluation,
     CommuniqueDeliberation, Deliberation, CommentaireCours, EvaluationEnseignement, BulletinNotes,
-    Recours, Notification, HistoriqueAction
+    Recours, Notification, HistoriqueAction, DocumentCours, InscriptionUE
 )
 from reglage.models import Classe, Categorie, Fonction, Grade, Departement as ReglDepartement, Section, TypeCharge
 from .forms import UserForm, UserEditForm, EtudiantForm, EnseignantForm, UEForm, ECForm, JuryForm, EvaluationForm, CohorteForm, InscriptionForm, PhotoForm
@@ -616,7 +616,9 @@ def modifier_ma_photo(request):
 
 @login_required
 def jury_cohorte(request):
-    """Affiche la cohorte de la classe du jury connecté et liste ses étudiants"""
+    """Affiche la cohorte de la classe du jury connecté et liste ses étudiants.
+    Pour les classes montantes (L2, L3, M1, M2), affiche aussi les résultats
+    des classes antérieures de chaque étudiant de la cohorte."""
     jury = get_jury_for_user(request)
     if not jury:
         messages.error(request, 'Profil jury non trouvé.')
@@ -646,6 +648,26 @@ def jury_cohorte(request):
     
     # Récupérer tous les étudiants de cette cohorte, regroupés par classe
     etudiants_par_classe = {}
+    palmares_par_classe = {}
+
+    def _mention_for_moyenne(moyenne):
+        if moyenne is None:
+            return 'A déterminer'
+        n = float(moyenne)
+        if n >= 18:
+            return 'Excellent (A)'
+        if n >= 16:
+            return 'Très bien (B)'
+        if n >= 14:
+            return 'Bien (C)'
+        if n >= 12:
+            return 'Assez Bien (D)'
+        if n >= 10:
+            return 'Passable (E)'
+        if n >= 8:
+            return 'Insuffisant (F)'
+        return 'Insatisfaisant (G)'
+
     if cohorte:
         all_inscriptions_cohorte = Inscription.objects.filter(
             cohorte=cohorte,
@@ -660,11 +682,255 @@ def jury_cohorte(request):
                 'etudiant': insc.matricule_etudiant,
                 'inscription': insc,
             })
+
+        # Calcul palmarès (par classe) aligné avec jury_imprimable_palmare
+        for classe_label, items in etudiants_par_classe.items():
+            rows = []
+            for item in items:
+                etudiant = item.get('etudiant')
+                insc = item.get('inscription')
+                classe_obj = getattr(insc, 'code_classe', None)
+                if not etudiant or not classe_obj:
+                    continue
+
+                delib_data = _jury_compute_delib_ues(classe_obj, etudiant, 'annuel', None, annee_code)
+                if not delib_data.get('rows'):
+                    continue
+
+                # Dettes (cours non validés) pour cet étudiant (basé sur les données de profil/délibération)
+                dettes_etudiant_map = {}
+                for r in delib_data.get('rows', []):
+                    if r.get('statut_code') == 'NON_VALIDE':
+                        code = r.get('code_ec') or r.get('code_ue')
+                        lib = r.get('intitule_ec') or r.get('intitule_ue') or ''
+                        if code and code not in dettes_etudiant_map:
+                            dettes_etudiant_map[code] = {
+                                'code': code,
+                                'code_ue': r.get('code_ue') or '',
+                                'code_ec': r.get('code_ec') or '',
+                                'intitule_ue': r.get('intitule_ue') or '',
+                                'intitule_ec': r.get('intitule_ec') or '',
+                                'libelle': lib,
+                                'categorie': r.get('categorie', ''),
+                                'semestre': r.get('semestre'),
+                                'credit': r.get('credit', 0) or 0,
+                            }
+                dettes_etudiant = sorted(
+                    dettes_etudiant_map.values(),
+                    key=lambda x: (x.get('semestre') or 0, str(x.get('code') or ''))
+                )
+
+                moyenne = delib_data.get('moyenne', 0) or 0
+                pourcentage = delib_data.get('pourcentage', 0) or 0
+                credits_capitalises = delib_data.get('credits_valides', 0)
+                credits_total = delib_data.get('credits_total', 0)
+                decision_code = delib_data.get('decision_code')
+
+                if decision_code == 'DEF':
+                    decision = 'DEF'
+                elif decision_code == 'ADM':
+                    decision = 'ADM'
+                elif decision_code in ['ADMD', 'COMP']:
+                    decision = 'COMP'
+                else:
+                    decision = 'AJ'
+
+                rows.append({
+                    'etudiant': etudiant,
+                    'moyenne': moyenne,
+                    'pourcentage': pourcentage,
+                    'credits_capitalises': credits_capitalises,
+                    'credits_total': credits_total,
+                    'decision': decision,
+                    'mention': _mention_for_moyenne(moyenne),
+                    'dettes': dettes_etudiant,
+                })
+
+            rows.sort(key=lambda x: float(x.get('moyenne') or 0), reverse=True)
+            for idx, r in enumerate(rows, 1):
+                r['rang'] = idx
+
+            palmares_par_classe[classe_label] = rows
     
     # Trier les classes
     etudiants_par_classe = dict(sorted(etudiants_par_classe.items()))
+
+    classes_data = []
+    for classe_label, etudiants in etudiants_par_classe.items():
+        classes_data.append({
+            'classe_label': classe_label,
+            'etudiants': etudiants,
+            'palmares_rows': palmares_par_classe.get(classe_label, []),
+        })
     
     total_etudiants = sum(len(v) for v in etudiants_par_classe.values())
+    
+    # ==================================================================
+    # RÉSULTATS CLASSES ANTÉRIEURES (pour classes montantes L2,L3,M1,M2)
+    # ==================================================================
+    niveau_precedent_map = {
+        'L2': 'L1', 'L3': 'L2', 'M1': None, 'M2': 'M1',
+    }
+    # Niveaux cumulés à remonter pour chaque niveau actuel
+    niveaux_anterieurs_map = {
+        'L2': ['L1'],
+        'L3': ['L2', 'L1'],
+        'M2': ['M1'],
+    }
+    
+    niveau_actuel = str(classe.code_niveau_id) if classe.code_niveau_id else ''
+    mention_id = str(classe.code_mention_id) if classe.code_mention_id else ''
+    niveaux_anterieurs = niveaux_anterieurs_map.get(niveau_actuel, [])
+    
+    resultats_anterieurs = []  # Liste de dicts {classe_label, annee, palmares_rows}
+    
+    if niveaux_anterieurs and cohorte:
+        # Collecter tous les étudiants de la cohorte actuelle
+        etudiants_cohorte = set()
+        for items in etudiants_par_classe.values():
+            for item in items:
+                etudiants_cohorte.add(item['etudiant'].matricule_et)
+        
+        # Pour chaque niveau antérieur, trouver les inscriptions passées
+        for niv_ant in niveaux_anterieurs:
+            # Trouver la classe antérieure (même mention + niveau antérieur)
+            try:
+                classe_ant = Classe.objects.get(
+                    code_niveau_id=niv_ant,
+                    code_mention_id=mention_id
+                )
+            except Classe.DoesNotExist:
+                continue
+            
+            # Trouver les inscriptions de ces étudiants dans cette classe (toutes années)
+            inscriptions_ant = Inscription.objects.filter(
+                matricule_etudiant__matricule_et__in=etudiants_cohorte,
+                code_classe=classe_ant,
+            ).select_related('matricule_etudiant', 'code_classe').order_by('-annee_academique')
+            
+            # Regrouper par année académique
+            annees_vues = {}
+            for insc_ant in inscriptions_ant:
+                annee_ant = insc_ant.annee_academique
+                if annee_ant not in annees_vues:
+                    annees_vues[annee_ant] = []
+                # Éviter les doublons d'étudiant dans la même année
+                matricules_deja = [x['etudiant'].matricule_et for x in annees_vues[annee_ant]]
+                if insc_ant.matricule_etudiant.matricule_et not in matricules_deja:
+                    annees_vues[annee_ant].append({
+                        'etudiant': insc_ant.matricule_etudiant,
+                        'inscription': insc_ant,
+                        'classe_obj': insc_ant.code_classe,
+                    })
+            
+            # Calculer le palmarès pour chaque année trouvée
+            for annee_ant, items_ant in sorted(annees_vues.items(), reverse=True):
+                rows_ant = []
+                for item in items_ant:
+                    etudiant = item['etudiant']
+                    classe_obj_ant = item['classe_obj']
+                    
+                    delib_data = _jury_compute_delib_ues(classe_obj_ant, etudiant, 'annuel', None, annee_ant)
+                    if not delib_data.get('rows'):
+                        # Même sans délibérations, inclure l'étudiant
+                        rows_ant.append({
+                            'etudiant': etudiant,
+                            'moyenne': 0,
+                            'pourcentage': 0,
+                            'credits_capitalises': 0,
+                            'credits_total': 0,
+                            'decision': '-',
+                            'mention': '-',
+                            'dettes': [],
+                        })
+                        continue
+                    
+                    # Dettes de cette classe antérieure
+                    dettes_map_ant = {}
+                    for r in delib_data.get('rows', []):
+                        if r.get('statut_code') == 'NON_VALIDE':
+                            code = r.get('code_ec') or r.get('code_ue')
+                            if code and code not in dettes_map_ant:
+                                dettes_map_ant[code] = {
+                                    'code': code,
+                                    'intitule_ue': r.get('intitule_ue') or '',
+                                    'intitule_ec': r.get('intitule_ec') or '',
+                                    'semestre': r.get('semestre'),
+                                    'credit': r.get('credit', 0) or 0,
+                                }
+                    dettes_ant = sorted(
+                        dettes_map_ant.values(),
+                        key=lambda x: (x.get('semestre') or 0, str(x.get('code') or ''))
+                    )
+                    
+                    moyenne = delib_data.get('moyenne', 0) or 0
+                    dc = delib_data.get('decision_code')
+                    if dc == 'DEF':
+                        decision = 'DEF'
+                    elif dc == 'ADM':
+                        decision = 'ADM'
+                    elif dc in ['ADMD', 'COMP']:
+                        decision = 'COMP'
+                    else:
+                        decision = 'AJ'
+                    
+                    rows_ant.append({
+                        'etudiant': etudiant,
+                        'moyenne': moyenne,
+                        'pourcentage': delib_data.get('pourcentage', 0) or 0,
+                        'credits_capitalises': delib_data.get('credits_valides', 0),
+                        'credits_total': delib_data.get('credits_total', 0),
+                        'decision': decision,
+                        'mention': _mention_for_moyenne(moyenne),
+                        'dettes': dettes_ant,
+                    })
+                
+                rows_ant.sort(key=lambda x: float(x.get('moyenne') or 0), reverse=True)
+                for idx, r in enumerate(rows_ant, 1):
+                    r['rang'] = idx
+                
+                resultats_anterieurs.append({
+                    'classe_label': classe_ant.code_classe,
+                    'annee': annee_ant,
+                    'palmares_rows': rows_ant,
+                    'nb_etudiants': len(rows_ant),
+                })
+    
+    # ---- Suivi des dettes (InscriptionUE) ----
+    from .models import InscriptionUE
+    suivi_dettes = []
+    if cohorte:
+        # Récupérer tous les étudiants de la cohorte  
+        etudiants_cohorte = [
+            insc.matricule_etudiant
+            for insc in Inscription.objects.filter(
+                cohorte=cohorte, annee_academique=annee_code
+            ).select_related('matricule_etudiant')
+        ]
+        inscriptions_ue = InscriptionUE.objects.filter(
+            matricule_etudiant__in=etudiants_cohorte,
+            type_inscription__in=['DETTE_COMPENSEE', 'DETTE_LIQUIDEE']
+        ).select_related(
+            'matricule_etudiant', 'code_ue', 'code_ec', 'code_classe'
+        ).order_by('matricule_etudiant__nom_complet', 'annee_academique')
+        
+        for iu in inscriptions_ue:
+            if iu.code_ec and iu.code_ec.code_ue:
+                sem = iu.code_ec.code_ue.semestre
+            elif iu.code_ue:
+                sem = iu.code_ue.semestre
+            else:
+                sem = None
+            suivi_dettes.append({
+                'etudiant': iu.matricule_etudiant,
+                'code': iu.code_ec.code_ec if iu.code_ec else (iu.code_ue.code_ue if iu.code_ue else '-'),
+                'intitule': iu.code_ec.intitule_ue if iu.code_ec else (iu.code_ue.intitule_ue if iu.code_ue else '-'),
+                'semestre': sem,
+                'classe_origine': iu.code_classe.code_classe if iu.code_classe else '-',
+                'annee': iu.annee_academique,
+                'type': iu.type_inscription,
+                'est_liquidee': iu.type_inscription == 'DETTE_LIQUIDEE',
+            })
     
     context = {
         'jury': jury,
@@ -672,7 +938,20 @@ def jury_cohorte(request):
         'annee': annee_code,
         'cohorte': cohorte,
         'etudiants_par_classe': etudiants_par_classe,
+        'palmares_par_classe': palmares_par_classe,
+        'classes_data': classes_data,
         'total_etudiants': total_etudiants,
+        'resultats_anterieurs': resultats_anterieurs,
+        'niveau_actuel': niveau_actuel,
+        'est_classe_montante': niveau_actuel in ('L2', 'L3', 'M2'),
+        'suivi_dettes': suivi_dettes,
+        'nb_dettes_en_cours': sum(1 for d in suivi_dettes if not d['est_liquidee']),
+        'nb_dettes_liquidees': sum(1 for d in suivi_dettes if d['est_liquidee']),
+        'delib_annuelle_faite': Deliberation.objects.filter(
+            code_classe=classe,
+            annee_academique=annee_code,
+            type_deliberation='ANNEE'
+        ).exists(),
     }
     return render(request, 'jury/cohorte.html', context)
 
@@ -687,9 +966,12 @@ def jury_recours(request):
         messages.error(request, 'Profil jury non trouvé.')
         return redirect('home')
     
-    # Récupérer les recours pour la classe du jury
-    inscriptions = Inscription.objects.filter(code_classe=jury.code_classe)
-    etudiants_classe = [ins.matricule_etudiant for ins in inscriptions]
+    # Récupérer les recours pour la classe du jury (filtrer par année)
+    annee_code = jury.annee_academique
+    ins_qs = Inscription.objects.filter(code_classe=jury.code_classe)
+    if annee_code:
+        ins_qs = ins_qs.filter(annee_academique=annee_code)
+    etudiants_classe = [ins.matricule_etudiant for ins in ins_qs]
     
     recours = Recours.objects.filter(etudiant__in=etudiants_classe).select_related('etudiant').order_by('-date_envoi')
     
@@ -736,7 +1018,7 @@ def jury_recours(request):
             rec.traitement_jury = traitement
             rec.decision_finale = decision
             if decision:
-                rec.statut = 'TRAITE' if decision in ('ACCEPTE', 'PARTIELLEMENT_ACCEPTE') else 'REJETE' if decision == 'REJETE' else rec.statut
+                rec.statut = 'TRAITE'
                 rec.traite_par = request.user
                 rec.date_traitement = timezone.now()
             rec.save()
@@ -1088,7 +1370,7 @@ def jury_recours_pdf(request):
     # Signatures des membres du jury
     from core.models import Enseignant as EnseignantModel
     try:
-        jury_obj = Jury.objects.filter(code_classe=jury.code_classe).first()
+        jury_obj = Jury.objects.filter(code_classe=jury.code_classe, annee_academique=jury.annee_academique).first()
         membre_nom = '____________________'
         membre_grade = 'Grade: _______________'
         president_nom = '____________________'
@@ -1336,11 +1618,28 @@ def etudiant_dashboard(request):
             annee_academique=inscription_active.annee_academique,
         ).order_by('-date_deliberation', '-date_creation').first()
 
-    # Résultats publiés ?
-    jury_publie = False
+    # Résultats publiés ? Si aucun jury n'existe pour cette classe, afficher normalement
+    jury_publie = True
     if classe_active:
-        jury_obj = Jury.objects.filter(code_classe=classe_active).first()
-        jury_publie = bool(jury_obj and jury_obj.decision and "Résultats publiés" in jury_obj.decision)
+        jury_obj = Jury.objects.filter(code_classe=classe_active, annee_academique=annee_code).first()
+        if jury_obj:
+            jury_publie = jury_obj.resultat_publie
+
+    # Vérifier par semestre si la délibération a été effectuée
+    semestres_deliberes = {}
+    if inscription_active and annee_code and semestres_niveau:
+        sem1, sem2 = semestres_niveau
+        delib_s1 = Deliberation.objects.filter(
+            code_classe=classe_active,
+            annee_academique=annee_code,
+            type_deliberation='S1',
+        ).exists()
+        delib_s2 = Deliberation.objects.filter(
+            code_classe=classe_active,
+            annee_academique=annee_code,
+            type_deliberation='S2',
+        ).exists()
+        semestres_deliberes = {sem1: delib_s1, sem2: delib_s2}
 
     nb_commentaires = 0
     if inscription_active:
@@ -1348,8 +1647,45 @@ def etudiant_dashboard(request):
             etudiant=etudiant,
             annee_academique=inscription_active.annee_academique,
         ).count()
-    
-    
+
+    # Crédits capitalisés par semestre
+    credits_par_semestre = {}
+    if classe_active and jury_publie:
+        toutes_ue = UE.objects.filter(classe=classe_active)
+        # Récupérer les évaluations indexées par code_ue
+        evals_etudiant = {}
+        for ev in evaluations:
+            if ev.code_ue_id:
+                evals_etudiant[ev.code_ue_id] = ev
+            if ev.code_ec_id and ev.code_ec and ev.code_ec.code_ue_id:
+                evals_etudiant.setdefault(ev.code_ec.code_ue_id, ev)
+        for ue in toutes_ue:
+            semestre = ue.semestre
+            if semestre not in credits_par_semestre:
+                credits_par_semestre[semestre] = {
+                    'total_credits': 0, 'credits_capitalises': 0,
+                    'ues_validees': [], 'credits_restants': 0, 'pourcentage': 0,
+                }
+            credits_par_semestre[semestre]['total_credits'] += (ue.credit or 0)
+            # Vérifier si l'UE est capitalisée (moyenne >= 10)
+            ev = evals_etudiant.get(ue.code_ue)
+            if ev:
+                note = ev.calculer_note_finale()
+                if note is not None and note >= 10:
+                    credits_par_semestre[semestre]['credits_capitalises'] += (ue.credit or 0)
+                    credits_par_semestre[semestre]['ues_validees'].append(ue)
+        for data in credits_par_semestre.values():
+            data['credits_restants'] = data['total_credits'] - data['credits_capitalises']
+            if data['total_credits'] > 0:
+                data['pourcentage'] = round((data['credits_capitalises'] / data['total_credits']) * 100, 1)
+
+    # Nombre de recours de l'étudiant
+    nb_recours = Recours.objects.filter(etudiant=etudiant).count()
+    nb_recours_en_attente = Recours.objects.filter(etudiant=etudiant, statut__in=['EN_ATTENTE', 'EN_EXAMEN']).count()
+
+    # Nombre d'évaluations enseignants effectuées
+    nb_eval_enseignants = EvaluationEnseignement.objects.filter(etudiant=etudiant).count()
+
     context = {
         'etudiant': etudiant,
         'annee_active': annee_active,
@@ -1368,6 +1704,14 @@ def etudiant_dashboard(request):
         'is_admin_view': is_admin_viewing(request),
         'semestres': semestres,
         'semestre_filter': semestre_filter,
+        'jury_publie': jury_publie,
+        'semestres_deliberes': semestres_deliberes,
+        'moyenne_generale': moyenne_generale,
+        'communique': communique,
+        'credits_par_semestre': credits_par_semestre,
+        'nb_recours': nb_recours,
+        'nb_recours_en_attente': nb_recours_en_attente,
+        'nb_eval_enseignants': nb_eval_enseignants,
     }
     return render(request, 'etudiant/dashboard.html', context)
 
@@ -1422,6 +1766,47 @@ def etudiant_notes(request):
             inscription_active = inscriptions.order_by('-annee_academique').first()
 
         classe_code = inscription_active.code_classe.code_classe if inscription_active else None
+        classe_active = inscription_active.code_classe if inscription_active else None
+
+        # Vérifier si le jury a publié les résultats. Si aucun jury n'existe, afficher normalement
+        jury_publie = True
+        if classe_active:
+            jury_obj = Jury.objects.filter(code_classe=classe_active, annee_academique=annee_code).first()
+            if jury_obj:
+                jury_publie = jury_obj.resultat_publie
+
+        # Vérifier par semestre si la délibération a été effectuée
+        # semestres_deliberes = {numéro_semestre: True/False}
+        semestres_deliberes = {}
+        if inscription_active and annee_code:
+            classe_obj = inscription_active.code_classe
+            # Déterminer les semestres du niveau (ex: L1 → S1,S2 ; L2 → S3,S4)
+            niveau_code = None
+            if getattr(classe_obj, 'code_niveau', None):
+                niveau_code = classe_obj.code_niveau.code_niveau
+            else:
+                code_cl = str(classe_obj.code_classe)
+                for prefix in ['L1', 'L2', 'L3', 'M1', 'M2']:
+                    if code_cl.startswith(prefix):
+                        niveau_code = prefix
+                        break
+            niveau_to_semestres = {
+                'L1': (1, 2), 'L2': (3, 4), 'L3': (5, 6),
+                'M1': (7, 8), 'M2': (9, 10),
+            }
+            semestres_niveau = niveau_to_semestres.get(niveau_code, (1, 2))
+            sem1, sem2 = semestres_niveau
+            delib_s1 = Deliberation.objects.filter(
+                code_classe=classe_obj,
+                annee_academique=annee_code,
+                type_deliberation='S1',
+            ).exists()
+            delib_s2 = Deliberation.objects.filter(
+                code_classe=classe_obj,
+                annee_academique=annee_code,
+                type_deliberation='S2',
+            ).exists()
+            semestres_deliberes = {sem1: delib_s1, sem2: delib_s2}
 
         # Récupérer les évaluations de l'étudiant
         evaluations = Evaluation.objects.filter(matricule_etudiant=etudiant).select_related('code_ue', 'code_ec', 'code_ec__code_ue')
@@ -1454,6 +1839,36 @@ def etudiant_notes(request):
         # Filtrer les UE pour le filtre dropdown
         toutes_les_ue = [ue for ue in ues_classe if ue.code_ue in eval_by_ue or ue.code_ue in ec_by_ue]
         
+        # Récupérer les statuts de délibération (source officielle, avec compensation)
+        delib_statut_by_ec = {}
+        delib_statut_by_ue = {}
+        if classe_active and annee_code:
+            deliberations = Deliberation.objects.filter(
+                matricule_etudiant=etudiant,
+                code_classe=classe_active,
+                annee_academique=annee_code,
+            ).select_related('code_ec', 'code_ue')
+            for d in deliberations:
+                if d.code_ec_id:
+                    delib_statut_by_ec[d.code_ec_id] = d.statut
+                elif d.code_ue_id:
+                    delib_statut_by_ue[d.code_ue_id] = d.statut
+
+        # Appliquer la compensation pour calculer les statuts finaux
+        # On utilise _jury_compute_delib_ues qui gère déjà la compensation
+        delib_statut_final_by_code = {}
+        if classe_active and annee_code and semestres_deliberes:
+            for sem_num in (sem1, sem2):
+                delib_data = _jury_compute_delib_ues(classe_active, etudiant, 'semestriel', sem_num, annee_code)
+                if delib_data:
+                    for row in delib_data.get('rows', []):
+                        code = row.get('code_ec', '')
+                        delib_statut_final_by_code[code] = {
+                            'statut_code': row.get('statut_code', ''),
+                            'statut': row.get('statut', ''),
+                            'compense': row.get('compense', False),
+                        }
+
         # Organiser les évaluations par UE
         evaluations_par_ue = {}
         moyennes_ue = {}
@@ -1476,10 +1891,15 @@ def etudiant_notes(request):
                     ev = eval_by_ec.get(ec.code_ec)
                     if ev:
                         note_finale = ev.calculer_note_finale()
+                        # Statut depuis la délibération (avec compensation)
+                        delib_info = delib_statut_final_by_code.get(ec.code_ec, {})
                         evals_list.append({
                             'evaluation': ev,
                             'note_finale': note_finale,
                             'ec': ec,
+                            'delib_statut_code': delib_info.get('statut_code', ''),
+                            'delib_statut': delib_info.get('statut', ''),
+                            'delib_compense': delib_info.get('compense', False),
                         })
                         if note_finale is not None:
                             total_weighted += note_finale * ec.credit
@@ -1496,40 +1916,30 @@ def etudiant_notes(request):
                 ev_ue = eval_by_ue.get(ue.code_ue)
                 if ev_ue:
                     note_finale = ev_ue.calculer_note_finale()
+                    delib_info = delib_statut_final_by_code.get(ue.code_ue, {})
                     evaluations_par_ue[ue] = [{
                         'evaluation': ev_ue,
                         'note_finale': note_finale,
                         'ec': None,
+                        'delib_statut_code': delib_info.get('statut_code', ''),
+                        'delib_statut': delib_info.get('statut', ''),
+                        'delib_compense': delib_info.get('compense', False),
                     }]
                     if note_finale is not None:
                         moyennes_ue[ue.code_ue] = note_finale
                         moyennes_ue_list.append({'ue': ue, 'moyenne': note_finale})
         
-        # Calculer les crédits capitalisés par semestre
+        # Calculer les crédits capitalisés par semestre via _jury_compute_delib_ues
+        # (même source que la page Résultats : table Deliberation + compensation)
         credits_par_semestre = {}
-        for ue, evals in evaluations_par_ue.items():
-            semestre = ue.semestre
-            if semestre not in credits_par_semestre:
-                credits_par_semestre[semestre] = {
-                    'total_credits': 0,
-                    'credits_capitalises': 0,
-                    'ues_validees': []
-                }
-            
-            credits_par_semestre[semestre]['total_credits'] += ue.credit
-            
-            # Vérifier si l'UE est capitalisée (moyenne >= 10)
-            if ue.code_ue in moyennes_ue and moyennes_ue[ue.code_ue] is not None:
-                if moyennes_ue[ue.code_ue] >= 10:
-                    credits_par_semestre[semestre]['credits_capitalises'] += ue.credit
-                    credits_par_semestre[semestre]['ues_validees'].append(ue)
-        
-        # Calculer les pourcentages pour chaque semestre
-        for semestre, data in credits_par_semestre.items():
-            if data['total_credits'] > 0:
-                data['pourcentage'] = round((data['credits_capitalises'] / data['total_credits']) * 100, 1)
-            else:
-                data['pourcentage'] = 0
+        if inscription_active and annee_code and classe_active and semestres_deliberes:
+            for sem_num in (sem1, sem2):
+                delib_data = _jury_compute_delib_ues(classe_active, etudiant, 'semestriel', sem_num, annee_code)
+                if delib_data and delib_data.get('rows'):
+                    credits_par_semestre[sem_num] = {
+                        'total_credits': delib_data.get('credits_total', 0),
+                        'credits_capitalises': delib_data.get('credits_valides', 0),
+                    }
         
         context = {
             'etudiant': etudiant,
@@ -1542,11 +1952,374 @@ def etudiant_notes(request):
             'toutes_les_ue': toutes_les_ue,
             'ue_filtre': ue_filtre,
             'credits_par_semestre': credits_par_semestre,
+            'semestres_deliberes': semestres_deliberes,
+            'jury_publie': jury_publie,
         }
         return render(request, 'etudiant/notes.html', context)
     except Etudiant.DoesNotExist:
         messages.error(request, 'Profil étudiant non trouvé.')
         return redirect('home')
+
+
+@login_required
+def jury_dashboard_grille_pdf(request):
+    """Imprime en PDF la grille du dashboard jury en 2 pages (S1 puis S2)"""
+    from io import BytesIO
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.units import cm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER
+    import os
+    from django.conf import settings
+    from PIL import Image as PILImage
+    from reportlab.platypus import Image as RLImage
+
+    jury = get_jury_for_user(request)
+    if not jury:
+        messages.error(request, 'Profil jury non trouvé.')
+        return redirect('home')
+
+    classe = jury.code_classe
+    if not classe:
+        messages.error(request, 'Classe introuvable pour ce jury.')
+        return redirect('home')
+
+    # Année académique du jury (éviter doublons)
+    annee_code = jury.annee_academique
+    if not annee_code:
+        from reglage.models import AnneeAcademique as AA
+        aa = AA.get_annee_en_cours()
+        annee_code = aa.code_anac if aa else None
+
+    # Reprendre la même logique de cours que jury_dashboard
+    ins_qs = Inscription.objects.filter(code_classe=classe).select_related('matricule_etudiant', 'cohorte')
+    if annee_code:
+        ins_qs = ins_qs.filter(annee_academique=annee_code)
+    inscriptions = ins_qs
+
+    ue_codes = list(UE.objects.filter(classe__code_classe=classe.code_classe).values_list('code_ue', flat=True))
+    ec_codes = list(EC.objects.filter(classe__code_classe=classe.code_classe).values_list('code_ec', flat=True))
+
+    ue_parents_avec_ec = set()
+    for ec_code in ec_codes:
+        ec = EC.objects.filter(code_ec=ec_code).select_related('code_ue').first()
+        if ec and ec.code_ue:
+            ue_parents_avec_ec.add(ec.code_ue.code_ue)
+
+    ue_codes_filtrees = [ue_code for ue_code in ue_codes if ue_code not in ue_parents_avec_ec]
+    cours_codes = ue_codes_filtrees + ec_codes
+    attributions = Attribution.objects.filter(code_cours__in=cours_codes)
+
+    cours_map = {}
+    for attr in attributions:
+        cours_obj = attr.get_cours_object()
+        cours_type = attr.get_type_cours()
+        if not (cours_obj and cours_type):
+            continue
+        semestre = None
+        if cours_type == 'UE':
+            semestre = getattr(cours_obj, 'semestre', None)
+        elif cours_type == 'EC':
+            semestre = getattr(getattr(cours_obj, 'code_ue', None), 'semestre', None)
+        cours_map[attr.code_cours] = {
+            'code': attr.code_cours,
+            'intitule': getattr(cours_obj, 'intitule_ue', attr.code_cours),
+            'type': cours_type,
+            'semestre': semestre,
+        }
+
+    cours_list = list(cours_map.values())
+    cours_list.sort(key=lambda c: ((c['semestre'] is None), c['semestre'] or 0, c['code']))
+
+    # Récupérer les évaluations pour chaque étudiant et chaque cours
+    etudiants_data = []
+    for inscription in inscriptions:
+        etudiant = inscription.matricule_etudiant
+        notes = {}
+        for cours in cours_list:
+            eval_filter = {'matricule_etudiant': etudiant}
+            if annee_code:
+                eval_filter['annee_academique'] = annee_code
+                eval_filter['code_classe'] = classe
+            if cours['type'] == 'EC':
+                eval_filter['code_ec__code_ec'] = cours['code']
+            else:
+                eval_filter['code_ue__code_ue'] = cours['code']
+            eval_obj = Evaluation.objects.filter(**eval_filter).first()
+
+            notes[cours['code']] = _format_evaluation_for_display(eval_obj) if eval_obj else None
+
+        etudiants_data.append({
+            'etudiant': etudiant,
+            'notes': notes,
+        })
+
+    def _cours_for_semestre(target_semestre):
+        return [c for c in cours_list if c.get('semestre') == target_semestre]
+
+    from reportlab.platypus import Flowable
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+
+    class VerticalText(Flowable):
+        """Flowable qui dessine du texte pivoté à 90° (bas vers haut)."""
+        def __init__(self, text, font_name='Helvetica-Bold', font_size=11, cell_w=None, cell_h=None):
+            Flowable.__init__(self)
+            self.text = text
+            self.font_name = font_name
+            self.font_size = font_size
+            self._cell_w = cell_w
+            self._cell_h = cell_h
+            self.width = cell_w or 0
+            self.height = cell_h or 0
+
+        def draw(self):
+            canvas = self.canv
+            canvas.saveState()
+            canvas.setFont(self.font_name, self.font_size)
+            # Partir du bas de la cellule, texte monte vers le haut
+            canvas.translate(self.width / 2, 0.15*cm)
+            canvas.rotate(90)
+            canvas.drawString(0, -self.font_size / 3, self.text)
+            canvas.restoreState()
+
+    def _build_table_for_semestre(target_semestre):
+        cours_sem = _cours_for_semestre(target_semestre)
+        col_w_note = 1.0*cm
+        header_row_h = 6.0*cm  # hauteur suffisante pour lire les intitulés en entier
+
+        def _abreger(texte, max_car=30):
+            return texte if len(texte) <= max_car else texte[:max_car - 1] + '…'
+
+        # Ligne 1 : intitulés verticaux (fusionnés sur 2 lignes pour la col Nom)
+        header_1 = ['NOMS']  # Nom Complet — sera fusionné sur 2 lignes
+        for c in cours_sem:
+            header_1.append(VerticalText(_abreger(c.get('intitule', '')), cell_w=col_w_note, cell_h=header_row_h))
+
+        # Ligne 2 : "" + "NF" pour chaque cours
+        header_2 = ['']
+        for _ in cours_sem:
+            header_2.append('NF')
+
+        data = [header_1, header_2]
+        for row in etudiants_data:
+            etu = row['etudiant']
+            line = [etu.nom_complet or '']
+            for c in cours_sem:
+                n = row['notes'].get(c['code'])
+                line.append(n.get('note_finale', '-') if n else '-')
+            data.append(line)
+
+        col_widths = [6.5*cm] + [col_w_note] * len(cours_sem)
+        row_heights = [header_row_h, 0.5*cm] + [None] * len(etudiants_data)
+
+        t = Table(data, colWidths=col_widths, rowHeights=row_heights, repeatRows=2)
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c3e50')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('BACKGROUND', (0, 1), (-1, 1), colors.HexColor('#34495e')),
+            ('TEXTCOLOR', (0, 1), (-1, 1), colors.white),
+            ('FONTNAME', (0, 0), (-1, 1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 11),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (0, 2), (0, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, 1), 'MIDDLE'),
+            ('VALIGN', (0, 2), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 0.25, colors.grey),
+            ('SPAN', (0, 0), (0, 1)),  # Fusionner "Nom Complet" sur 2 lignes
+            ('ROWBACKGROUNDS', (0, 2), (-1, -1), [colors.white, colors.HexColor('#f0f4f8')]),
+        ]))
+        return t
+
+    # Déterminer les 2 semestres de la classe (si possible)
+    semestres = list(
+        UE.objects.filter(classe__code_classe=classe.code_classe)
+        .values_list('semestre', flat=True)
+        .distinct()
+        .order_by('semestre')
+    )
+    semestres = [s for s in semestres if s is not None]
+    sem1 = semestres[0] if len(semestres) >= 1 else None
+    sem2 = semestres[1] if len(semestres) >= 2 else None
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), leftMargin=0.7*cm, rightMargin=0.7*cm, topMargin=0.7*cm, bottomMargin=0.7*cm)
+    styles = getSampleStyleSheet()
+    page_w = landscape(A4)[0] - 1.4*cm
+
+    bureau_style = ParagraphStyle('bureau', fontSize=11, fontName='Helvetica-Bold', alignment=TA_CENTER, textColor=colors.HexColor('#2c3e50'), spaceAfter=2)
+    title_style  = ParagraphStyle('title',  fontSize=16, fontName='Helvetica-Bold', alignment=TA_CENTER, textColor=colors.HexColor('#2c3e50'), spaceAfter=2)
+    sub_style    = ParagraphStyle('sub',    fontSize=9,  fontName='Helvetica',      alignment=TA_CENTER, textColor=colors.HexColor('#555555'), spaceAfter=4)
+
+    entete_path = os.path.join(settings.MEDIA_ROOT, 'entete.png')
+
+    def _build_header_elements(semestre_label):
+        elems = []
+        if os.path.exists(entete_path):
+            pil_img = PILImage.open(entete_path)
+            iw, ih = pil_img.size
+            desired_w = page_w
+            desired_h = desired_w * (ih / iw)
+            elems.append(RLImage(entete_path, width=desired_w, height=desired_h))
+            elems.append(Spacer(1, 0.3*cm))
+        elems.append(Paragraph(f"BUREAU DU JURY {classe.code_classe}", bureau_style))
+        elems.append(Paragraph(
+            f"Classe : <b>{classe.code_classe} – {classe.designation_classe}</b>"
+            f" &nbsp;&nbsp;|&nbsp;&nbsp; Semestre : <b>{semestre_label}</b>"
+            f" &nbsp;&nbsp;|&nbsp;&nbsp; Année académique : <b>{annee_code}</b>",
+            sub_style
+        ))
+        elems.append(Spacer(1, 0.3*cm))
+        return elems
+
+    from reglage.models import AnneeAcademique as _AA
+    annee_active = _AA.get_annee_en_cours()
+    annee_code = jury.annee_academique or (annee_active.code_anac if annee_active else '')
+
+    elements = []
+
+    if sem1 is not None:
+        elements += _build_header_elements(sem1)
+        elements.append(_build_table_for_semestre(sem1))
+    if sem2 is not None:
+        elements.append(PageBreak())
+        elements += _build_header_elements(sem2)
+        elements.append(_build_table_for_semestre(sem2))
+
+    doc.build(elements)
+    pdf = buffer.getvalue()
+    buffer.close()
+
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="grille_jury_{classe.code_classe}.pdf"'
+    return response
+
+
+@login_required
+def jury_deliberer_resultats_pdf(request):
+    """Imprime en PDF le tableau des résultats affichés dans Délibérer"""
+    from io import BytesIO
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.units import cm
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet
+
+    jury = get_jury_for_user(request)
+    if not jury:
+        messages.error(request, 'Profil jury non trouvé.')
+        return redirect('home')
+
+    classe = jury.code_classe
+    if not classe:
+        messages.error(request, 'Classe non trouvée.')
+        return redirect('jury_deliberer')
+
+    from reglage.models import AnneeAcademique
+    annee_active = AnneeAcademique.get_annee_en_cours()
+    annee_code = jury.annee_academique or (annee_active.code_anac if annee_active else None)
+    if not annee_code:
+        annee_code = (
+            Inscription.objects.filter(code_classe=classe)
+            .values_list('annee_academique', flat=True)
+            .order_by('-annee_academique')
+            .first()
+        )
+
+    def _mention_for_note(note):
+        if note is None:
+            return None
+        n = float(note)
+        if n >= 18:
+            return 'Excellent (A)'
+        if n >= 16:
+            return 'Très bien (B)'
+        if n >= 14:
+            return 'Bien (C)'
+        if n >= 12:
+            return 'Assez Bien (D)'
+        if n >= 10:
+            return 'Passable (E)'
+        if n >= 8:
+            return 'Insuffisant (F)'
+        return 'Insatisfaisant (G)'
+
+    inscriptions = Inscription.objects.filter(code_classe=classe, annee_academique=annee_code).select_related('matricule_etudiant')
+    resultats = []
+    for inscription in inscriptions:
+        etudiant = inscription.matricule_etudiant
+        stats_s1 = _jury_compute_delib_ues(classe, etudiant, 'semestriel', 1, annee_code)
+        stats_s2 = _jury_compute_delib_ues(classe, etudiant, 'semestriel', 2, annee_code)
+        stats_annuel = _jury_compute_delib_ues(classe, etudiant, 'annuel', None, annee_code)
+
+        credits_s1 = stats_s1.get('credits_valides', 0)
+        credits_s2 = stats_s2.get('credits_valides', 0)
+        credits_annuel = stats_annuel.get('credits_valides', 0)
+        moyenne = stats_annuel.get('moyenne', 0) or 0
+        decision = stats_annuel.get('decision_label', 'A déterminer')
+        mention = _mention_for_note(moyenne)
+
+        resultats.append({
+            'matricule': etudiant.matricule_et,
+            'nom': etudiant.nom_complet,
+            'credits_s1': credits_s1,
+            'credits_s2': credits_s2,
+            'credits_annuel': credits_annuel,
+            'moyenne': round(float(moyenne), 2),
+            'mention': mention or '',
+            'decision': decision or '',
+        })
+
+    resultats.sort(key=lambda r: (r.get('nom') or '', r.get('matricule') or ''))
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), leftMargin=1*cm, rightMargin=1*cm, topMargin=1*cm, bottomMargin=1*cm)
+    styles = getSampleStyleSheet()
+
+    data = [[
+        'Matricule', 'Nom Complet',
+        'Crédits S1', 'Crédits S2', 'Crédits Annuel',
+        'Moyenne', 'Mention', 'Décision'
+    ]]
+    for r in resultats:
+        data.append([
+            r.get('matricule', ''),
+            r.get('nom', ''),
+            str(r.get('credits_s1', 0)),
+            str(r.get('credits_s2', 0)),
+            str(r.get('credits_annuel', 0)),
+            f"{r.get('moyenne', 0):.2f}",
+            r.get('mention', ''),
+            r.get('decision', ''),
+        ])
+
+    col_widths = [2.8*cm, 7.5*cm, 2.2*cm, 2.2*cm, 2.6*cm, 1.8*cm, 3.6*cm, 4.2*cm]
+    t = Table(data, colWidths=col_widths, repeatRows=1)
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#343a40')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('ALIGN', (2, 1), (5, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 0.25, colors.grey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
+    ]))
+
+    elements = [
+        Paragraph(f"RESULTATS DE DELIBERATION - Classe {classe.code_classe} - {annee_code}", styles['Title']),
+        Spacer(1, 0.3*cm),
+        t,
+    ]
+    doc.build(elements)
+
+    pdf = buffer.getvalue()
+    buffer.close()
+
+    response = HttpResponse(pdf, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="resultats_deliberation_{classe.code_classe}_{annee_code}.pdf"'
+    return response
 
 
 @login_required
@@ -1616,6 +2389,19 @@ def etudiant_mes_cours(request):
     
     for c in cours_list:
         c['enseignants'] = attr_dict.get(c['code'], [])
+
+    # Récupérer les documents disponibles pour chaque cours
+    docs_qs = DocumentCours.objects.filter(
+        code_cours__in=[c['code'] for c in cours_list],
+        annee_academique=annee_code
+    ).order_by('code_cours', '-date_ajout')
+    docs_dict = {}
+    for doc in docs_qs:
+        if doc.code_cours not in docs_dict:
+            docs_dict[doc.code_cours] = []
+        docs_dict[doc.code_cours].append(doc)
+    for c in cours_list:
+        c['documents'] = docs_dict.get(c['code'], [])
 
     # Récupérer toutes les options pour les filtres (avant filtrage)
     tous_les_semestres = sorted(set(c['semestre'] for c in cours_list if c['semestre'] is not None))
@@ -1786,8 +2572,11 @@ def etudiant_resultats(request):
         messages.error(request, 'Aucune classe trouvée pour cet étudiant.')
         return redirect('etudiant_dashboard')
 
-    jury_obj = Jury.objects.filter(code_classe=classe_active).first()
-    jury_publie = bool(jury_obj and jury_obj.decision and "Résultats publiés" in jury_obj.decision)
+    jury_obj = Jury.objects.filter(code_classe=classe_active, annee_academique=annee_code).first()
+    if jury_obj:
+        jury_publie = jury_obj.resultat_publie
+    else:
+        jury_publie = True
 
     if not jury_publie:
         context = {
@@ -1897,8 +2686,8 @@ def etudiant_bulletin_pdf(request):
         return redirect('etudiant_resultats')
 
     # Vérifier que le jury a publié
-    jury_obj = Jury.objects.filter(code_classe=classe_active).first()
-    jury_publie = bool(jury_obj and jury_obj.decision and "Résultats publiés" in jury_obj.decision)
+    jury_obj = Jury.objects.filter(code_classe=classe_active, annee_academique=annee_code).first()
+    jury_publie = bool(jury_obj and jury_obj.resultat_publie)
     if not jury_publie:
         messages.error(request, 'Les résultats ne sont pas encore publiés.')
         return redirect('etudiant_resultats')
@@ -1934,13 +2723,14 @@ def etudiant_bulletin_pdf(request):
 
     delib_data = _jury_compute_delib_ues(classe_active, etudiant, type_delib, semestre_int, annee_code)
 
-    from core.utils_profil_pdf import generer_profil_pdf
-    # On réutilise generer_profil_pdf mais on va intercepter pour changer le titre
-    # Pour simplifier, on crée une version bulletin via la même fonction
-    return _generer_bulletin_pdf(request, etudiant, classe_active, annee_code, semestre_int, delib_data, vue)
+    # Récupérer les dettes (InscriptionUE) pour affichage dans le bulletin
+    from .views_passage_automatique import recuperer_dettes_classe_inferieure
+    dettes = recuperer_dettes_classe_inferieure(etudiant, classe_active, annee_code)
+
+    return _generer_bulletin_pdf(request, etudiant, classe_active, annee_code, semestre_int, delib_data, vue, dettes)
 
 
-def _generer_bulletin_pdf(request, etudiant, classe_obj, annee, semestre, delib, vue_type):
+def _generer_bulletin_pdf(request, etudiant, classe_obj, annee, semestre, delib, vue_type, dettes=None):
     """Génère le bulletin de l'étudiant en PDF — même format que profil_pdf mais titre BULLETIN DE L'ÉTUDIANT"""
     from io import BytesIO
     from reportlab.lib.pagesizes import A4
@@ -2132,7 +2922,49 @@ def _generer_bulletin_pdf(request, etudiant, classe_obj, annee, semestre, delib,
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
     ]))
     elements_pdf.append(summary2)
-    elements_pdf.append(Spacer(1, 0.8*cm))
+    elements_pdf.append(Spacer(1, 4*mm))
+
+    # Section Dettes (si l'étudiant a des dettes)
+    if dettes:
+        dette_title_style = ParagraphStyle('DTS', parent=styles['Normal'], fontSize=9, leading=11,
+                                            fontName='Helvetica-Bold', textColor=colors.HexColor('#856404'))
+        elements_pdf.append(Paragraph('<b>⚠ Suivi des Dettes</b>', dette_title_style))
+        elements_pdf.append(Spacer(1, 2*mm))
+
+        dette_data = [[
+            Paragraph('<b>Code UE/EC</b>', table_header_style),
+            Paragraph('<b>Intitulé</b>', table_header_style),
+            Paragraph("<b>Classe d'origine</b>", table_header_style),
+            Paragraph('<b>Statut</b>', table_header_style),
+        ]]
+        for d in dettes:
+            code = d.code_ec.code_ec if d.code_ec else (d.code_ue.code_ue if d.code_ue else '-')
+            intitule = d.code_ec.intitule_ue if d.code_ec else (d.code_ue.intitule_ue if d.code_ue else '-')
+            classe_orig = d.code_classe.code_classe if d.code_classe else '-'
+            statut = 'Liquidée' if d.type_inscription == 'DETTE_LIQUIDEE' else 'En cours'
+            dette_data.append([
+                Paragraph(code, table_cell_style),
+                Paragraph(intitule, table_cell_style),
+                Paragraph(classe_orig, table_cell_center),
+                Paragraph(statut, table_cell_center),
+            ])
+
+        dette_table = Table(dette_data, colWidths=[3*cm, 7.5*cm, 3.5*cm, 4*cm])
+        dette_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#fff3cd')),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('LEFTPADDING', (0, 0), (-1, -1), 3),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#856404')),
+        ]))
+        elements_pdf.append(dette_table)
+
+    elements_pdf.append(Spacer(1, 0.6*cm))
 
     # Date
     from datetime import datetime
@@ -2144,7 +2976,7 @@ def _generer_bulletin_pdf(request, etudiant, classe_obj, annee, semestre, delib,
     underline_style = ParagraphStyle('US', parent=styles['Normal'], fontSize=9, alignment=TA_CENTER, fontName='Helvetica')
     italic_style = ParagraphStyle('IS', parent=styles['Normal'], fontSize=8, alignment=TA_CENTER, fontName='Helvetica-Oblique')
 
-    jury_info = Jury.objects.filter(code_classe=classe_obj).first()
+    jury_info = Jury.objects.filter(code_classe=classe_obj, annee_academique=annee).first()
     membre_nom = president_nom = secretaire_nom = "____________________"
     membre_grade = president_grade = secretaire_grade = "Grade: _______________"
     if jury_info:
@@ -3024,13 +3856,15 @@ def enseignant_mes_cours(request):
         # Récupérer les attributions de l'enseignant
         attributions_raw = Attribution.objects.filter(matricule_en=enseignant).select_related('type_charge')
         
-        # Filtre par année académique
-        annee_filter = request.GET.get('annee', '')
-        if annee_filter:
-            attributions_raw = attributions_raw.filter(annee_academique=annee_filter)
-        
         # Liste des années académiques pour le filtre
         annees = AnneeAcademique.objects.all().order_by('-code_anac')
+        
+        # Filtre par année académique (par défaut : la dernière année)
+        annee_filter = request.GET.get('annee', '')
+        if not annee_filter and 'annee' not in request.GET and annees.exists():
+            annee_filter = annees.first().code_anac
+        if annee_filter:
+            attributions_raw = attributions_raw.filter(annee_academique=annee_filter)
         
         # Enrichir avec les infos des cours
         attributions = []
@@ -3080,6 +3914,120 @@ def enseignant_mes_cours(request):
     except Enseignant.DoesNotExist:
         messages.error(request, 'Profil enseignant non trouvé.')
         return redirect('home')
+
+
+@login_required
+def enseignant_documents_cours(request, code_cours, annee):
+    """Gestion des documents PDF d'un cours par l'enseignant"""
+    enseignant = get_simulated_enseignant(request)
+    if not enseignant:
+        messages.error(request, 'Profil enseignant non trouvé.')
+        return redirect('home')
+
+    # Vérifier que l'enseignant est bien attributaire de ce cours
+    attribution = Attribution.objects.filter(
+        matricule_en=enseignant, code_cours=code_cours, annee_academique=annee
+    ).first()
+    if not attribution:
+        messages.error(request, "Vous n'êtes pas attributaire de ce cours.")
+        return redirect('enseignant_mes_cours')
+
+    # Récupérer intitulé du cours
+    from .models import UE, EC
+    intitule = code_cours
+    try:
+        ue = UE.objects.get(code_ue=code_cours)
+        intitule = ue.intitule_ue
+    except UE.DoesNotExist:
+        try:
+            ec = EC.objects.get(code_ec=code_cours)
+            intitule = ec.intitule_ue
+        except EC.DoesNotExist:
+            pass
+
+    # Upload de document
+    if request.method == 'POST':
+        action = request.POST.get('action', 'upload')
+
+        if action == 'upload':
+            titre = request.POST.get('titre', '').strip()
+            type_document = request.POST.get('type_document', 'COURS')
+            fichier = request.FILES.get('fichier')
+
+            if not titre or not fichier:
+                messages.error(request, 'Veuillez remplir tous les champs.')
+            elif not fichier.name.lower().endswith('.pdf'):
+                messages.error(request, 'Seuls les fichiers PDF sont acceptés.')
+            elif fichier.size > 10 * 1024 * 1024:  # 10 Mo max
+                messages.error(request, 'Le fichier ne doit pas dépasser 10 Mo.')
+            else:
+                DocumentCours.objects.create(
+                    enseignant=enseignant,
+                    code_cours=code_cours,
+                    annee_academique=annee,
+                    titre=titre,
+                    type_document=type_document,
+                    fichier=fichier,
+                )
+                messages.success(request, f'Document « {titre} » ajouté avec succès.')
+                return redirect('enseignant_documents_cours', code_cours=code_cours, annee=annee)
+
+        elif action == 'delete':
+            doc_id = request.POST.get('doc_id')
+            doc = DocumentCours.objects.filter(id=doc_id, enseignant=enseignant, code_cours=code_cours).first()
+            if doc:
+                doc.fichier.delete(save=False)
+                doc.delete()
+                messages.success(request, 'Document supprimé.')
+            else:
+                messages.error(request, 'Document introuvable.')
+            return redirect('enseignant_documents_cours', code_cours=code_cours, annee=annee)
+
+    documents = DocumentCours.objects.filter(
+        enseignant=enseignant, code_cours=code_cours, annee_academique=annee
+    )
+
+    context = {
+        'enseignant': enseignant,
+        'code_cours': code_cours,
+        'annee': annee,
+        'intitule': intitule,
+        'documents': documents,
+        'type_choices': DocumentCours.TYPE_DOCUMENT_CHOICES,
+    }
+    return render(request, 'enseignant/documents_cours.html', context)
+
+
+@login_required
+def etudiant_telecharger_document(request, doc_id):
+    """Télécharger un document cours (étudiant)"""
+    etudiant = get_simulated_etudiant(request)
+    if not etudiant:
+        messages.error(request, 'Profil étudiant non trouvé.')
+        return redirect('home')
+
+    doc = get_object_or_404(DocumentCours, id=doc_id)
+
+    # Vérifier que l'étudiant est inscrit dans une classe qui a ce cours
+    inscriptions = Inscription.objects.filter(matricule_etudiant=etudiant).values_list('code_classe__code_classe', flat=True)
+    cours_classes = set()
+    from .models import UE, EC
+    for ue in UE.objects.filter(code_ue=doc.code_cours):
+        if ue.classe:
+            cours_classes.add(ue.classe.code_classe if hasattr(ue.classe, 'code_classe') else str(ue.classe))
+    for ec in EC.objects.filter(code_ec=doc.code_cours):
+        if ec.classe:
+            cours_classes.add(ec.classe.code_classe if hasattr(ec.classe, 'code_classe') else str(ec.classe))
+
+    if not cours_classes.intersection(set(inscriptions)):
+        messages.error(request, "Vous n'avez pas accès à ce document.")
+        return redirect('etudiant_mes_cours')
+
+    import mimetypes
+    content_type = mimetypes.guess_type(doc.fichier.name)[0] or 'application/pdf'
+    response = HttpResponse(doc.fichier.read(), content_type=content_type)
+    response['Content-Disposition'] = f'attachment; filename="{doc.fichier.name.split("/")[-1]}"'
+    return response
 
 
 @login_required
@@ -3424,8 +4372,18 @@ def jury_dashboard(request):
         messages.error(request, 'Classe introuvable pour ce jury.')
         return redirect('home')
 
-    # Récupérer les étudiants de la classe
-    inscriptions = Inscription.objects.filter(code_classe=classe).select_related('matricule_etudiant', 'cohorte')
+    # Année académique du jury (éviter doublons si des doublants existent)
+    annee_code = jury.annee_academique
+    if not annee_code:
+        from reglage.models import AnneeAcademique
+        annee_active = AnneeAcademique.get_annee_en_cours()
+        annee_code = annee_active.code_anac if annee_active else None
+
+    # Récupérer les étudiants de la classe pour l'année du jury
+    ins_qs = Inscription.objects.filter(code_classe=classe).select_related('matricule_etudiant', 'cohorte')
+    if annee_code:
+        ins_qs = ins_qs.filter(annee_academique=annee_code)
+    inscriptions = ins_qs
     
     # Récupérer les cours évalués pour cette classe (via Attribution)
     ue_codes = list(UE.objects.filter(classe__code_classe=classe.code_classe).values_list('code_ue', flat=True))
@@ -3523,16 +4481,15 @@ def jury_dashboard(request):
         count = 0
         
         for cours in cours_list:
+            eval_filter = {'matricule_etudiant': etudiant}
+            if annee_code:
+                eval_filter['annee_academique'] = annee_code
+                eval_filter['code_classe'] = classe
             if cours['type'] == 'EC':
-                eval_obj = Evaluation.objects.filter(
-                    matricule_etudiant=etudiant,
-                    code_ec__code_ec=cours['code']
-                ).first()
+                eval_filter['code_ec__code_ec'] = cours['code']
             else:
-                eval_obj = Evaluation.objects.filter(
-                    matricule_etudiant=etudiant,
-                    code_ue__code_ue=cours['code']
-                ).first()
+                eval_filter['code_ue__code_ue'] = cours['code']
+            eval_obj = Evaluation.objects.filter(**eval_filter).first()
             
             if eval_obj:
                 formatted = _format_evaluation_for_display(eval_obj)
@@ -3568,18 +4525,16 @@ def jury_dashboard(request):
     total_etudiants = len(etudiants_data)
     pourcentage_admis = round((nb_admis / total_etudiants * 100), 1) if total_etudiants > 0 else 0
     
-    # Calculer les recours pour la classe du jury
-    inscriptions = Inscription.objects.filter(code_classe=classe)
-    etudiants_classe = [ins.matricule_etudiant for ins in inscriptions]
+    # Calculer les recours pour la classe du jury (même année)
+    ins_recours = Inscription.objects.filter(code_classe=classe)
+    if annee_code:
+        ins_recours = ins_recours.filter(annee_academique=annee_code)
+    etudiants_classe = [ins.matricule_etudiant for ins in ins_recours]
     recours_classe = Recours.objects.filter(etudiant__in=etudiants_classe)
     nb_recours_en_attente = recours_classe.filter(statut='EN_ATTENTE').count()
     
     # Récupérer les informations sur les délibérations
-    from reglage.models import AnneeAcademique
-    annee_active = AnneeAcademique.get_annee_en_cours()
-    annee_code = annee_active.code_anac if annee_active else None
-    if not annee_code:
-        annee_code = inscriptions.order_by('-annee_academique').values_list('annee_academique', flat=True).first()
+    # annee_code déjà définie en haut de la vue
     
     # Récupérer la dernière délibération pour cette classe
     dernieres_deliberations = Deliberation.objects.filter(
@@ -4366,8 +5321,35 @@ def jury_deliberer(request):
             credits_s1 = stats_s1.get('credits_valides', 0)
             credits_s2 = stats_s2.get('credits_valides', 0)
             credits_annuel = stats_annuel.get('credits_valides', 0)
-            moyenne = stats_annuel.get('moyenne', 0)
-            decision = stats_annuel.get('decision_label', 'A déterminer')
+            
+            # Décisions par type
+            decision_s1 = stats_s1.get('decision_label', 'A déterminer')
+            decision_s2 = stats_s2.get('decision_label', 'A déterminer')
+            decision_annuel = stats_annuel.get('decision_label', 'A déterminer')
+            
+            # Moyenne et décision selon le type sélectionné
+            # Détecter quels semestres ont réellement des données
+            s1_has_data = stats_s1.get('credits_total', 0) > 0
+            s2_has_data = stats_s2.get('credits_total', 0) > 0
+            
+            if selected_type == 'S1':
+                moyenne = stats_s1.get('moyenne', 0)
+                decision = decision_s1
+            elif selected_type == 'S2':
+                moyenne = stats_s2.get('moyenne', 0)
+                decision = decision_s2
+            else:
+                # ANNEE: si un seul semestre a des données, utiliser sa décision
+                if s1_has_data and not s2_has_data:
+                    moyenne = stats_s1.get('moyenne', 0)
+                    decision = decision_s1
+                elif s2_has_data and not s1_has_data:
+                    moyenne = stats_s2.get('moyenne', 0)
+                    decision = decision_s2
+                else:
+                    # Les deux semestres ont des données (ou aucun) → décision annuelle
+                    moyenne = stats_annuel.get('moyenne', 0)
+                    decision = decision_annuel
             
             # Déterminer la mention
             mention = _mention_for_note(moyenne)
@@ -4376,6 +5358,9 @@ def jury_deliberer(request):
                 'etudiant': etudiant,
                 'moyenne': round(moyenne, 2),
                 'decision': decision,
+                'decision_s1': decision_s1,
+                'decision_s2': decision_s2,
+                'decision_annuel': decision_annuel,
                 'credits_s1_capitalises': credits_s1,
                 'credits_s2_capitalises': credits_s2,
                 'credits_annuel_capitalises': credits_annuel,
@@ -4388,41 +5373,23 @@ def jury_deliberer(request):
         stats_annuel = {'admis': 0, 'compensable': 0, 'ajournes': 0, 'defaillants': 0}
         
         # Calculer les stats basées sur les vraies décisions
+        def _classify_decision(decision_str, stats_dict):
+            """Classe une décision dans le bon compteur de stats."""
+            if 'Admis' in decision_str and 'dette' not in decision_str:
+                stats_dict['admis'] += 1
+            elif 'Admis avec dette' in decision_str:
+                stats_dict['compensable'] += 1
+            elif 'Compensable' in decision_str:
+                stats_dict['compensable'] += 1
+            elif 'Ajourné' in decision_str:
+                stats_dict['ajournes'] += 1
+            else:
+                stats_dict['defaillants'] += 1
+        
         for r in resultats:
-            decision = r.get('decision', '')
-            credits_s1 = r.get('credits_s1_capitalises', 0)
-            credits_s2 = r.get('credits_s2_capitalises', 0)
-            credits_total = r.get('credits_annuel_capitalises', 0)
-            
-            # Stats Annuel basées sur la décision réelle
-            if 'Admis' in decision and 'dette' not in decision:
-                stats_annuel['admis'] += 1
-            elif 'Admis avec dette' in decision:
-                stats_annuel['compensable'] += 1
-            elif 'Ajourné' in decision:
-                stats_annuel['ajournes'] += 1
-            else:
-                stats_annuel['defaillants'] += 1
-            
-            # Stats S1 basées sur les crédits validés
-            if credits_s1 >= 30:
-                stats_s1['admis'] += 1
-            elif credits_s1 > 15:  # Plus de 15 mais moins de 30
-                stats_s1['compensable'] += 1
-            elif credits_s1 > 0:  # Moins de 15
-                stats_s1['ajournes'] += 1
-            else:
-                stats_s1['defaillants'] += 1
-            
-            # Stats S2 basées sur les crédits validés
-            if credits_s2 >= 30:
-                stats_s2['admis'] += 1
-            elif credits_s2 > 15:  # Plus de 15 mais moins de 30
-                stats_s2['compensable'] += 1
-            elif credits_s2 > 0:  # Moins de 15
-                stats_s2['ajournes'] += 1
-            else:
-                stats_s2['defaillants'] += 1
+            _classify_decision(r.get('decision_s1', ''), stats_s1)
+            _classify_decision(r.get('decision_s2', ''), stats_s2)
+            _classify_decision(r.get('decision_annuel', ''), stats_annuel)
 
         if request.method == 'POST':
             semestre_val = None
@@ -4444,7 +5411,13 @@ def jury_deliberer(request):
                     etudiant = r['etudiant']
                     
                     # Récupérer les évaluations de l'étudiant pour cette délibération
-                    evaluations = Evaluation.objects.filter(matricule_etudiant=etudiant)
+                    # IMPORTANT: filtrer par année et classe pour éviter les doublons
+                    # après passage automatique (notes transférées aux doublants)
+                    evaluations = Evaluation.objects.filter(
+                        matricule_etudiant=etudiant,
+                        annee_academique=annee_code,
+                        code_classe=classe
+                    )
                     if semestres_cibles:
                         evaluations = evaluations.filter(
                             Q(code_ue__semestre__in=semestres_cibles) |
@@ -4523,7 +5496,23 @@ def jury_deliberer(request):
                 elif selected_type == 'S2':
                     params_print['semestre'] = sem2
         url_imprimables = f"{reverse('jury_imprimables')}?{urlencode(params_print)}"
-        
+
+        # Vérifier les délibérations déjà effectuées
+        delib_s1_faite = False
+        delib_s2_faite = False
+        delib_annee_faite = False
+        if classe and annee_code and semestres_niveau:
+            sem1, sem2 = semestres_niveau
+            delib_s1_faite = Deliberation.objects.filter(
+                code_classe=classe, annee_academique=annee_code, type_deliberation='S1'
+            ).exists()
+            delib_s2_faite = Deliberation.objects.filter(
+                code_classe=classe, annee_academique=annee_code, type_deliberation='S2'
+            ).exists()
+            delib_annee_faite = Deliberation.objects.filter(
+                code_classe=classe, annee_academique=annee_code, type_deliberation='ANNEE'
+            ).exists()
+
         context = {
             'classe': classe,
             'annee_code': annee_code,
@@ -4537,6 +5526,9 @@ def jury_deliberer(request):
             'stats_s2': stats_s2,
             'stats_annuel': stats_annuel,
             'url_imprimables': url_imprimables,
+            'delib_s1_faite': delib_s1_faite,
+            'delib_s2_faite': delib_s2_faite,
+            'delib_annee_faite': delib_annee_faite,
         }
         return render(request, 'jury/deliberer.html', context)
     except Exception as e:
@@ -4690,7 +5682,8 @@ def jury_publier(request):
             from django.core.files.base import ContentFile
             
             # Publier les résultats
-            jury.decision = "Résultats publiés le " + str(timezone.now().date())
+            jury.resultat_publie = True
+            jury.date_publication = timezone.now()
             jury.save()
             
             # Générer les bulletins pour tous les étudiants de la classe
@@ -4824,6 +5817,34 @@ def jury_publier(request):
 
 
 @login_required
+def jury_depublier(request):
+    """Dépublication des résultats par le jury"""
+    jury = get_jury_for_user(request)
+    if not jury:
+        messages.error(request, 'Profil jury non trouvé.')
+        return redirect('home')
+    
+    try:
+        if request.method == 'POST':
+            # Dépublier les résultats
+            jury.resultat_publie = False
+            jury.date_publication = None
+            jury.save()
+            
+            messages.success(request, 'Les résultats ont été dépubliés avec succès. Les étudiants ne peuvent plus y accéder.')
+            return redirect('jury_dashboard')
+        
+        # Afficher la page de confirmation
+        context = {
+            'jury': jury,
+        }
+        return render(request, 'jury/depublier.html', context)
+    except Exception as e:
+        messages.error(request, f'Erreur lors de la dépublication: {str(e)}')
+        return redirect('jury_dashboard')
+
+
+@login_required
 def jury_grille_cours(request):
     """Liste des cours de la classe pour le jury"""
     jury = get_jury_for_user(request)
@@ -4869,7 +5890,7 @@ def jury_grille_cours(request):
                 continue  # Cette UE a des EC, on ne l'affiche pas
             
             semestre = ue.semestre or 0
-            nb_evals = Evaluation.objects.filter(code_ue=ue).count()
+            nb_evals = Evaluation.objects.filter(code_ue=ue, annee_academique=annee).count()
             is_evalué = nb_evals > 0
             is_complet = nb_evals >= nb_etudiants if nb_etudiants > 0 else False
             
@@ -4890,7 +5911,7 @@ def jury_grille_cours(request):
         
         for ec in ec_list:
             semestre = ec.code_ue.semestre if ec.code_ue else 0
-            nb_evals = Evaluation.objects.filter(code_ec=ec).count()
+            nb_evals = Evaluation.objects.filter(code_ec=ec, annee_academique=annee).count()
             is_evalué = nb_evals > 0
             is_complet = nb_evals >= nb_etudiants if nb_etudiants > 0 else False
             
@@ -4980,9 +6001,9 @@ def jury_evaluer_cours(request, code_cours, annee):
         if attribution and attribution.matricule_en:
             ens = attribution.matricule_en
             if ens.grade:
-                enseignant_nom = f"{ens.grade.code_grade} {ens.nom_complet}"
+                enseignant_nom = f"{ens.grade.code_grade} {ens.nom_complet} ({ens.matricule_en})"
             else:
-                enseignant_nom = ens.nom_complet
+                enseignant_nom = f"{ens.nom_complet} ({ens.matricule_en})"
         cours_info['enseignant'] = enseignant_nom
         
         # Le jury a toujours accès au rattrapage et rachat
@@ -5002,11 +6023,13 @@ def jury_evaluer_cours(request, code_cours, annee):
                 eval_existante = Evaluation.objects.filter(
                     matricule_etudiant=insc.matricule_etudiant,
                     code_ue__code_ue=code_cours,
+                    annee_academique=annee,
                 ).first()
             else:
                 eval_existante = Evaluation.objects.filter(
                     matricule_etudiant=insc.matricule_etudiant,
                     code_ec__code_ec=code_cours,
+                    annee_academique=annee,
                 ).first()
             
             # Formater en STRING pour éviter les problèmes de précision float
@@ -5416,10 +6439,7 @@ def jury_evaluations(request):
 
         # Appliquer les filtres
         if selected_annee:
-            evaluations = evaluations.filter(
-                matricule_etudiant__inscription__code_classe=classe,
-                matricule_etudiant__inscription__annee_academique=selected_annee
-            )
+            evaluations = evaluations.filter(annee_academique=selected_annee)
 
         if selected_semestre:
             evaluations = evaluations.filter(
@@ -5453,6 +6473,9 @@ def jury_evaluations(request):
             evaluations = evaluations.filter(
                 matricule_etudiant__matricule_et=selected_etudiant
             )
+
+        # Dédupliquer pour éviter les doublons (même étudiant + même UE/EC)
+        evaluations = evaluations.distinct()
 
         # Ordonner les résultats: d'abord S1 pour tous les étudiants, puis S2
         evaluations = evaluations.order_by(
@@ -5554,9 +6577,12 @@ def jury_evaluations(request):
         ues = UE.objects.filter(classe=classe).order_by('semestre', 'code_ue')
         semestres = sorted(list(set(ue.semestre for ue in ues if ue.semestre)))
         
-        # Récupérer la liste des étudiants de la classe
+        # Récupérer la liste des étudiants de la classe pour l'année sélectionnée
+        etudiants_filter = {'inscription__code_classe': classe}
+        if selected_annee:
+            etudiants_filter['inscription__annee_academique'] = selected_annee
         etudiants = Etudiant.objects.filter(
-            inscription__code_classe=classe
+            **etudiants_filter
         ).order_by('nom_complet').distinct()
 
         context = {
@@ -5832,6 +6858,8 @@ def jury_deliberations(request):
             'note_ponderee': round(note_ponderee, 2),
             'rattrapage': delib.rattrapage,
             'statut': delib.statut,
+            'code_ec': ec.code_ec if ec else None,
+            'code_ue': ue.code_ue if ue else None,
             'semestre': semestre,
             'id': delib.id_delib,
             'type_deliberation': delib.type_deliberation,
@@ -5852,11 +6880,22 @@ def jury_deliberations(request):
         type_delib = 'annuel'
         sem = None
     
+    # Map compensé: (matricule, code_ec_ou_ue) -> statut_code (avec compensation)
+    compensated_status_map = {}
+
+    def _collect_compensated_statuses(stats_result, matricule):
+        """Collecter les statuts compensés depuis les rows de _jury_compute_delib_ues"""
+        for row in stats_result.get('rows', []):
+            code = row.get('code_ec') or row.get('code_ue')
+            if code:
+                compensated_status_map[(matricule, code)] = row.get('statut_code', 'NON_VALIDE')
+    
     # Si un étudiant spécifique est sélectionné, calculer ses stats
     if selected_etudiant:
         etudiant_obj = Etudiant.objects.filter(matricule_et=selected_etudiant).first()
         if etudiant_obj:
             stats = _jury_compute_delib_ues(classe_obj, etudiant_obj, type_delib, sem, selected_annee)
+            _collect_compensated_statuses(stats, selected_etudiant)
             total_credits = stats.get('credits_total', 0)
             total_credits_capitalises = stats.get('credits_valides', 0)
             moyenne_cat_a = stats.get('moyenne_cat_a', 0)
@@ -5899,6 +6938,7 @@ def jury_deliberations(request):
             etudiant_obj = Etudiant.objects.filter(pk=etudiant_id).first()
             if etudiant_obj:
                 stats = _jury_compute_delib_ues(classe_obj, etudiant_obj, type_delib, sem, selected_annee)
+                _collect_compensated_statuses(stats, etudiant_obj.matricule_et)
                 total_credits += stats.get('credits_total', 0)
                 total_credits_capitalises += stats.get('credits_valides', 0)
                 somme_moyenne_cat_a += stats.get('moyenne_cat_a', 0) or 0
@@ -5922,6 +6962,13 @@ def jury_deliberations(request):
         moyenne_cat_a = round(somme_moyenne_cat_a / nb_etudiants, 2) if nb_etudiants > 0 else 0
         moyenne_cat_b = round(somme_moyenne_cat_b / nb_etudiants, 2) if nb_etudiants > 0 else 0
         moyenne_ponderee_globale = round(somme_moyenne_globale / nb_etudiants, 2) if nb_etudiants > 0 else 0
+
+    # Appliquer les statuts compensés aux lignes de délibérations
+    for d in deliberations_data:
+        mat = d['matricule_etudiant']
+        lookup_code = d.get('code_ec') or d.get('code_ue')
+        if lookup_code and (mat, lookup_code) in compensated_status_map:
+            d['statut'] = compensated_status_map[(mat, lookup_code)]
 
     # Récupérer les données pour les filtres
     ues = UE.objects.filter(classe=classe_obj).order_by('semestre', 'code_ue')
@@ -6453,24 +7500,45 @@ def _jury_compute_delib_ues(classe_obj, etudiant, type_delib, semestre, annee_ac
         credits_valides = s1.get('credits_valides', 0) + s2.get('credits_valides', 0)
         credits_total_attendus = s1.get('credits_total_attendus', 0) + s2.get('credits_total_attendus', 0)
         
-        # Calculer les moyennes pondérées combinées
-        s1_moy = s1.get('moyenne', 0) or 0
-        s2_moy = s2.get('moyenne', 0) or 0
-        s1_tot = s1.get('credits_total', 0)
-        s2_tot = s2.get('credits_total', 0)
-        moyenne_generale = (s1_moy * s1_tot + s2_moy * s2_tot) / (s1_tot + s2_tot) if (s1_tot + s2_tot) > 0 else 0
+        # Recalculer les moyennes pondérées depuis les rows combinées
+        # (évite les erreurs de moyenne arithmétique simple entre semestres)
+        total_points = 0
+        total_credits_pondere = 0
+        points_cat_a = 0
+        credits_cat_a = 0
+        points_cat_b = 0
+        credits_cat_b = 0
         
-        # Moyennes par catégorie (moyenne pondérée des deux semestres)
-        moyenne_cat_a = ((s1.get('moyenne_cat_a', 0) or 0) + (s2.get('moyenne_cat_a', 0) or 0)) / 2
-        moyenne_cat_b = ((s1.get('moyenne_cat_b', 0) or 0) + (s2.get('moyenne_cat_b', 0) or 0)) / 2
+        for row in combined_rows:
+            note = row.get('note')
+            credit = row.get('credit', 0) or 0
+            categorie = (row.get('categorie', '') or '').upper()
+            
+            if note is not None and credit > 0:
+                total_points += note * credit
+                total_credits_pondere += credit
+                
+                if categorie == 'A':
+                    points_cat_a += note * credit
+                    credits_cat_a += credit
+                elif categorie == 'B':
+                    points_cat_b += note * credit
+                    credits_cat_b += credit
+        
+        moyenne_generale = total_points / total_credits_pondere if total_credits_pondere > 0 else 0
+        moyenne_cat_a = points_cat_a / credits_cat_a if credits_cat_a > 0 else 0
+        moyenne_cat_b = points_cat_b / credits_cat_b if credits_cat_b > 0 else 0
         
         # Combiner les EC compensés
         ec_compensated_ids = s1.get('ec_compensated_ids', []) + s2.get('ec_compensated_ids', [])
         ue_compensated_ids = s1.get('ue_compensated_ids', []) + s2.get('ue_compensated_ids', [])
         
         # === COMPENSATION ANNUELLE ===
+        # En MASTER (M1/M2): PAS de compensation annuelle
         # Compenser les cours NON_VALIDE (note 8-9.99) si moyenne annuelle catégorie >= 10
         # Ne jamais dégrader un cours déjà validé
+        is_master = classe_obj and hasattr(classe_obj, 'code_niveau_id') and str(classe_obj.code_niveau_id) in ('M1', 'M2')
+        
         for row in combined_rows:
             if row.get('statut_code') == 'NON_VALIDE':
                 note = row.get('note')
@@ -6486,7 +7554,8 @@ def _jury_compute_delib_ues(classe_obj, etudiant, type_delib, semestre, annee_ac
                     moyenne_cat = 0
                 
                 # Critères: note entre 8 et 9.99 ET moyenne catégorie >= 10
-                if note is not None and 8 <= note < 10 and moyenne_cat >= 10:
+                # En Master: compensation désactivée
+                if not is_master and note is not None and 8 <= note < 10 and moyenne_cat >= 10:
                     row['statut'] = 'Validé'
                     row['statut_code'] = 'VALIDE_COMP'
                     row['est_valide'] = True
@@ -6515,7 +7584,8 @@ def _jury_compute_delib_ues(classe_obj, etudiant, type_delib, semestre, annee_ac
         elif credits_total > 0:
             if credits_valides >= 60:
                 decision_label, decision_code = 'Admis', 'ADM'
-            elif credits_valides >= 45:
+            elif not is_master and credits_valides >= 45:
+                # Licence uniquement: admis avec dette (compensation autorisée)
                 decision_label, decision_code = 'Admis avec dette', 'ADMD'
             else:
                 decision_label, decision_code = 'Ajourné', 'AJ'
@@ -6721,13 +7791,15 @@ def _jury_compute_delib_ues(classe_obj, etudiant, type_delib, semestre, annee_ac
     # Pourcentage
     pourcentage = (moyenne_generale / 20) * 100 if moyenne_generale > 0 else 0
     
-    # === COMPENSATION (appliquée pour semestriel ET annuel) ===
-    # Critères de compensation:
+    # === COMPENSATION (Licence uniquement, PAS en Master M1/M2) ===
+    # En MASTER (M1/M2): aucune compensation semestrielle ni annuelle
+    # Critères de compensation (Licence uniquement):
     # 1. Moyenne de la catégorie >= 10
     # 2. Note du cours entre 8 et 9.99
     # Ne jamais changer 'Validé' en 'Non validé', seulement l'inverse
     ec_compensated_ids = []
     ue_compensated_ids = []
+    is_master = classe_obj and hasattr(classe_obj, 'code_niveau_id') and str(classe_obj.code_niveau_id) in ('M1', 'M2')
     
     # Parcourir les rows et appliquer/détecter la compensation
     for row in rows:
@@ -6744,7 +7816,8 @@ def _jury_compute_delib_ues(classe_obj, etudiant, type_delib, semestre, annee_ac
             moyenne_cat = 0
         
         # Critères de compensation: moyenne_cat >= 10 ET note entre 8 et 9.99
-        est_compensable = moyenne_cat >= 10 and note is not None and 8 <= note < 10
+        # En Master: compensation désactivée
+        est_compensable = not is_master and moyenne_cat >= 10 and note is not None and 8 <= note < 10
         
         # Pour l'annuel: PAS de nouvelle compensation, juste utiliser les statuts existants
         # L'annuel = somme des crédits capitalisés S1 + S2 (déjà compensés dans chaque semestre)
@@ -6787,7 +7860,8 @@ def _jury_compute_delib_ues(classe_obj, etudiant, type_delib, semestre, annee_ac
         if taux_validation >= 100:
             decision_label = 'Admis'
             decision_code = 'ADM'
-        elif taux_validation >= 70:
+        elif not is_master and taux_validation >= 70:
+            # Licence uniquement: compensation possible
             decision_label = 'Compensable'
             decision_code = 'COMP'
         else:
@@ -6843,8 +7917,27 @@ def jury_imprimable_profil_pdf(request, matricule):
     # Calculer les détails des UE/EC depuis les délibérations
     delib_ues = _jury_compute_delib_ues(classe_obj, etudiant, type_delib, semestre, annee)
 
+    # Récupérer les dettes (InscriptionUE) pour affichage informatif
+    from .views_passage_automatique import recuperer_dettes_classe_inferieure
+    dettes = recuperer_dettes_classe_inferieure(etudiant, classe_obj, annee)
+
+    # En mode semestriel, filtrer les dettes par parité de semestre
+    if type_delib == 'semestriel' and semestre:
+        parite = semestre % 2
+        dettes_filtrees = []
+        for d in dettes:
+            if d.code_ec and d.code_ec.code_ue:
+                sem_dette = d.code_ec.code_ue.semestre
+            elif d.code_ue:
+                sem_dette = d.code_ue.semestre
+            else:
+                sem_dette = None
+            if sem_dette is not None and sem_dette % 2 == parite:
+                dettes_filtrees.append(d)
+        dettes = dettes_filtrees
+
     from core.utils_profil_pdf import generer_profil_pdf
-    return generer_profil_pdf(request, etudiant, classe_obj, annee, semestre, delib_ues)
+    return generer_profil_pdf(request, etudiant, classe_obj, annee, semestre, delib_ues, dettes=dettes)
 
 
 @login_required
@@ -7119,6 +8212,22 @@ def jury_imprimable_profil(request, matricule):
     # Récupérer les dettes (InscriptionUE) pour affichage informatif
     from .views_passage_automatique import recuperer_dettes_classe_inferieure
     dettes = recuperer_dettes_classe_inferieure(etudiant, classe_obj, annee)
+
+    # En mode semestriel, filtrer les dettes par parité de semestre
+    # Ex: profil S3 → dettes S1/S3/S5 (impair), profil S4 → dettes S2/S4/S6 (pair)
+    if type_delib == 'semestriel' and semestre:
+        parite = semestre % 2  # 1 pour impair, 0 pour pair
+        dettes_filtrees = []
+        for d in dettes:
+            if d.code_ec and d.code_ec.code_ue:
+                sem_dette = d.code_ec.code_ue.semestre
+            elif d.code_ue:
+                sem_dette = d.code_ue.semestre
+            else:
+                sem_dette = None
+            if sem_dette is not None and sem_dette % 2 == parite:
+                dettes_filtrees.append(d)
+        dettes = dettes_filtrees
 
     context = {
         'jury': jury,
@@ -7595,6 +8704,27 @@ def reinitialiser_mot_de_passe(request, user_id):
 
 
 @login_required
+def toggle_utilisateur_actif(request, user_id):
+    """Activer ou désactiver un compte utilisateur"""
+    if not request.user.is_staff:
+        messages.error(request, 'Accès non autorisé.')
+        return redirect('home')
+
+    utilisateur = get_object_or_404(User, id=user_id)
+
+    if utilisateur == request.user:
+        messages.error(request, 'Vous ne pouvez pas désactiver votre propre compte.')
+        return redirect('gestion_utilisateurs')
+
+    utilisateur.is_active = not utilisateur.is_active
+    utilisateur.save()
+
+    etat = 'activé' if utilisateur.is_active else 'désactivé'
+    messages.success(request, f'Compte de {utilisateur.username} {etat} avec succès.')
+    return redirect('gestion_utilisateurs')
+
+
+@login_required
 def supprimer_utilisateurs_selection(request):
     """Supprimer en lot des utilisateurs sélectionnés dans la liste."""
     if not request.user.is_staff:
@@ -7658,10 +8788,26 @@ def exporter_credentials_utilisateurs(request):
         lines.append("- Fonctions: pres (président), sec (secrétaire)")
         lines.append("- Exemple: jury_pres_L1INFO_27 (Président pour classe L1INFO, année 2026-2027)")
         lines.append("- Exemple: jury_sec_L1MEC_27 (Secrétaire pour classe L1MEC, année 2026-2027)")
-        lines.append("- Mot de passe par défaut: username2025")
+        lines.append("- Mot de passe: généré aléatoirement à la création du jury")
         lines.append("")
         lines.append("=" * 60)
         lines.append("")
+    
+    # Pré-charger les mots de passe jury stockés (indexés par username)
+    jury_passwords = {}
+    for j in Jury.objects.all():
+        annee_suffix = j.annee_academique[-2:] if j.annee_academique else ''
+        cc = j.code_classe.code_classe if j.code_classe_id else ''
+        if annee_suffix and cc:
+            if j.password_pres:
+                jury_passwords[f'jury_pres_{cc}_{annee_suffix}'] = j.password_pres
+            if j.password_sec:
+                jury_passwords[f'jury_sec_{cc}_{annee_suffix}'] = j.password_sec
+        elif cc:
+            if j.password_pres:
+                jury_passwords[f'jury_pres_{cc}'] = j.password_pres
+            if j.password_sec:
+                jury_passwords[f'jury_sec_{cc}'] = j.password_sec
     
     for user in utilisateurs:
         # Récupérer le nom complet
@@ -7672,9 +8818,11 @@ def exporter_credentials_utilisateurs(request):
         else:
             nom_complet = f"{user.first_name} {user.last_name}".strip() or "-"
 
-        # Recalculer le mot de passe par défaut (sans le réinitialiser)
-        # Format universel: username2025
-        default_password = f"{user.username}2025"
+        # Récupérer le mot de passe: depuis le stockage Jury si disponible, sinon format par défaut
+        if user.username in jury_passwords:
+            default_password = jury_passwords[user.username]
+        else:
+            default_password = f"{user.username}2025"
         
         lines.append(f"Nom complet: {nom_complet}")
         lines.append(f"Username: {user.username}")
@@ -8076,58 +9224,54 @@ def gestion_ec(request):
 
 
 @login_required
-@login_required
 @require_gestionnaire_or_admin
 def gestion_jurys(request):
     """Vue de gestion des jurys avec formulaire et grille"""
     
     jurys_raw = Jury.objects.all().select_related('code_classe', 'id_lgn')
-
-    latest_annee_by_classe = {
-        row['code_classe']: row['last_annee']
-        for row in (
-            Inscription.objects.values('code_classe')
-            .annotate(last_annee=Max('annee_academique'))
-        )
+    
+    # Pré-charger tous les enseignants référencés (élimine les requêtes N+1)
+    all_matricules = set()
+    for jury in jurys_raw:
+        all_matricules.add(jury.president)
+        all_matricules.add(jury.secretaire)
+        if jury.membre:
+            all_matricules.add(jury.membre)
+    all_matricules.discard('')
+    all_matricules.discard(None)
+    enseignants_map = {
+        ens.matricule_en: ens
+        for ens in Enseignant.objects.filter(matricule_en__in=all_matricules).select_related('grade')
     }
+    
+    # Pré-charger les délibérations par classe (élimine les requêtes N+1)
+    delib_set = set(
+        Deliberation.objects.filter(
+            code_classe__in=[j.code_classe_id for j in jurys_raw],
+        ).values_list('code_classe', 'annee_academique', 'type_deliberation')
+    )
+    
+    def _ens_display(matricule):
+        """Formater le nom d'affichage d'un enseignant."""
+        ens = enseignants_map.get(matricule)
+        if ens and ens.grade:
+            return f"{ens.grade.code_grade} {ens.nom_complet}"
+        return ens.nom_complet if ens else (matricule or '')
     
     # Enrichir les jurys avec les noms complets des enseignants
     jurys = []
     for jury in jurys_raw:
-        # Récupérer les infos du président
-        pres = Enseignant.objects.filter(matricule_en=jury.president).select_related('grade').first()
-        pres_display = f"{pres.grade.code_grade} {pres.nom_complet}" if pres and pres.grade else (pres.nom_complet if pres else jury.president)
-        
-        # Récupérer les infos du secrétaire
-        sec = Enseignant.objects.filter(matricule_en=jury.secretaire).select_related('grade').first()
-        sec_display = f"{sec.grade.code_grade} {sec.nom_complet}" if sec and sec.grade else (sec.nom_complet if sec else jury.secretaire)
-        
-        # Récupérer les infos du membre
-        membre_display = ''
-        if jury.membre:
-            membre = Enseignant.objects.filter(matricule_en=jury.membre).select_related('grade').first()
-            membre_display = f"{membre.grade.code_grade} {membre.nom_complet}" if membre and membre.grade else (membre.nom_complet if membre else jury.membre)
+        # Utiliser l'année du jury (pas la dernière année d'inscription)
+        annee_for_delib = jury.annee_academique
         
         jurys.append({
             'jury': jury,
-            'president_display': pres_display,
-            'secretaire_display': sec_display,
-            'membre_display': membre_display,
-            'delib_s1': Deliberation.objects.filter(
-                code_classe=jury.code_classe,
-                annee_academique=latest_annee_by_classe.get(jury.code_classe_id),
-                type_deliberation='S1',
-            ).exists(),
-            'delib_s2': Deliberation.objects.filter(
-                code_classe=jury.code_classe,
-                annee_academique=latest_annee_by_classe.get(jury.code_classe_id),
-                type_deliberation='S2',
-            ).exists(),
-            'delib_annee': Deliberation.objects.filter(
-                code_classe=jury.code_classe,
-                annee_academique=latest_annee_by_classe.get(jury.code_classe_id),
-                type_deliberation='ANNEE',
-            ).exists(),
+            'president_display': _ens_display(jury.president),
+            'secretaire_display': _ens_display(jury.secretaire),
+            'membre_display': _ens_display(jury.membre) if jury.membre else '',
+            'delib_s1': (jury.code_classe_id, annee_for_delib, 'S1') in delib_set,
+            'delib_s2': (jury.code_classe_id, annee_for_delib, 'S2') in delib_set,
+            'delib_annee': (jury.code_classe_id, annee_for_delib, 'ANNEE') in delib_set,
         })
     
     form = JuryForm()
@@ -8142,7 +9286,7 @@ def gestion_jurys(request):
             # Créer utilisateur Président avec rôle JURY
             annee_suffix = jury.annee_academique[-2:] if jury.annee_academique else ''
             username_pres = f"jury_pres_{jury.code_classe.code_classe}_{annee_suffix}" if annee_suffix else f"jury_pres_{jury.code_classe.code_classe}"
-            password_pres = f"{username_pres}2025"
+            password_pres = get_random_string(12)
             user_pres, created_pres = User.objects.get_or_create(
                 username=username_pres,
                 defaults={
@@ -8159,7 +9303,7 @@ def gestion_jurys(request):
             
             # Créer utilisateur Secrétaire avec rôle JURY
             username_sec = f"jury_sec_{jury.code_classe.code_classe}_{annee_suffix}" if annee_suffix else f"jury_sec_{jury.code_classe.code_classe}"
-            password_sec = f"{username_sec}2025"
+            password_sec = get_random_string(12)
             user_sec, created_sec = User.objects.get_or_create(
                 username=username_sec,
                 defaults={
@@ -8179,9 +9323,13 @@ def gestion_jurys(request):
             jury.secretaire = secretaire.matricule_en if secretaire else ''
             membre = form.cleaned_data.get('membre')
             jury.membre = membre.matricule_en if membre else ''
+            # Lier le compte président au jury et stocker les mots de passe
+            jury.id_lgn = user_pres
+            jury.password_pres = password_pres
+            jury.password_sec = password_sec
             jury.save()
             
-            messages.success(request, f'Jury créé! Comptes: {username_pres} / {username_sec}')
+            messages.success(request, f'Jury créé! Comptes: {username_pres} (mdp: {password_pres}) / {username_sec} (mdp: {password_sec})')
             return redirect('gestion_jurys')
     
     context = {
@@ -8228,11 +9376,37 @@ def gestion_inscriptions(request):
     # Filtres
     classe_filter = request.GET.get('classe', '')
     annee_filter = request.GET.get('annee', '')
-    
+    date_filter = request.GET.get('date_filter', '')
+
     if classe_filter:
         inscriptions = inscriptions.filter(code_classe__code_classe=classe_filter)
     if annee_filter:
         inscriptions = inscriptions.filter(annee_academique=annee_filter)
+    if date_filter:
+        from datetime import datetime, timedelta
+        try:
+            date_obj = datetime.strptime(date_filter, '%Y-%m-%d').date()
+            date_debut = datetime.combine(date_obj, datetime.min.time())
+            date_fin = date_debut + timedelta(days=1)
+            inscriptions = inscriptions.filter(
+                date_inscription__gte=date_debut,
+                date_inscription__lt=date_fin,
+            )
+        except ValueError:
+            pass
+
+    inscriptions = inscriptions.order_by('-date_inscription', 'code_inscription')
+
+    # Dates distinctes pour peupler le combo (Cast compatible MySQL)
+    from django.db.models import DateField
+    from django.db.models.functions import Cast
+    dates_distinctes = (
+        Inscription.objects.annotate(date_only=Cast('date_inscription', DateField()))
+        .values_list('date_only', flat=True)
+        .distinct()
+        .order_by('-date_only')
+    )
+    dates_distinctes = [d for d in dates_distinctes if d is not None]
     
     form = InscriptionForm()
     
@@ -8254,8 +9428,113 @@ def gestion_inscriptions(request):
         'annees': annees,
         'classe_filter': classe_filter,
         'annee_filter': annee_filter,
+        'date_filter': date_filter,
+        'dates_distinctes': dates_distinctes,
     }
     return render(request, 'gestion/inscriptions.html', context)
+
+
+@login_required
+def gestion_inscriptions_pdf(request):
+    """Export PDF de la liste des inscriptions avec filtres actifs"""
+    from io import BytesIO
+    from datetime import datetime, timedelta
+    from django.http import HttpResponse
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib import colors
+    from reportlab.lib.units import cm
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+
+    inscriptions = Inscription.objects.all().select_related('matricule_etudiant', 'code_classe', 'cohorte')
+
+    classe_filter = request.GET.get('classe', '')
+    annee_filter = request.GET.get('annee', '')
+    date_filter = request.GET.get('date_filter', '')
+
+    if classe_filter:
+        inscriptions = inscriptions.filter(code_classe__code_classe=classe_filter)
+    if annee_filter:
+        inscriptions = inscriptions.filter(annee_academique=annee_filter)
+    if date_filter:
+        try:
+            date_obj = datetime.strptime(date_filter, '%Y-%m-%d').date()
+            date_debut = datetime.combine(date_obj, datetime.min.time())
+            date_fin = date_debut + timedelta(days=1)
+            inscriptions = inscriptions.filter(date_inscription__gte=date_debut, date_inscription__lt=date_fin)
+        except ValueError:
+            pass
+
+    inscriptions = inscriptions.order_by('-date_inscription', 'code_inscription')
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), topMargin=1.5*cm, bottomMargin=1.5*cm, leftMargin=1.5*cm, rightMargin=1.5*cm)
+    elements = []
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=16, alignment=TA_CENTER, spaceAfter=6, fontName='Helvetica-Bold')
+    sub_style = ParagraphStyle('Sub', parent=styles['Normal'], fontSize=9, alignment=TA_CENTER, spaceAfter=12, textColor=colors.grey)
+
+    elements.append(Paragraph("LISTE DES INSCRIPTIONS", title_style))
+
+    filtres_parts = []
+    if classe_filter:
+        filtres_parts.append(f"Classe : {classe_filter}")
+    if annee_filter:
+        filtres_parts.append(f"Année : {annee_filter}")
+    if date_filter:
+        try:
+            d = datetime.strptime(date_filter, '%Y-%m-%d')
+            filtres_parts.append(f"Date : {d.strftime('%d/%m/%Y')}")
+        except ValueError:
+            pass
+    if filtres_parts:
+        elements.append(Paragraph("Filtres actifs : " + " | ".join(filtres_parts), sub_style))
+    else:
+        elements.append(Paragraph(f"Toutes les inscriptions — Imprimé le {datetime.now().strftime('%d/%m/%Y à %H:%M')}", sub_style))
+
+    elements.append(Spacer(1, 0.3*cm))
+
+    header = ['N°', 'Code Inscription', 'Date', 'Année Acad.', 'Étudiant', 'Classe', 'Cohorte']
+    data = [header]
+    for i, ins in enumerate(inscriptions, 1):
+        cohorte = ins.cohorte.code_cohorte if ins.cohorte else '-'
+        date_str = ins.date_inscription.strftime('%d/%m/%Y') if ins.date_inscription else '-'
+        data.append([
+            str(i),
+            ins.code_inscription,
+            date_str,
+            ins.annee_academique,
+            ins.matricule_etudiant.nom_complet if ins.matricule_etudiant else '-',
+            str(ins.code_classe),
+            cohorte,
+        ])
+
+    col_widths = [1*cm, 3.5*cm, 2.5*cm, 3*cm, 7*cm, 3*cm, 3*cm]
+    table = Table(data, colWidths=col_widths, repeatRows=1)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#343a40')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('ALIGN', (4, 1), (4, -1), 'LEFT'),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
+        ('GRID', (0, 0), (-1, -1), 0.4, colors.HexColor('#dee2e6')),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    elements.append(table)
+
+    doc.build(elements)
+    buffer.seek(0)
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = 'inline; filename="inscriptions.pdf"'
+    return response
 
 
 # ========== VUES D'ACTIONS (Modifier, Supprimer, Voir) ==========
@@ -8306,20 +9585,255 @@ def supprimer_etudiant(request, matricule):
 @login_required
 def voir_etudiant(request, matricule):
     """Voir les détails d'un étudiant"""
-    if not request.user.is_staff:
+    if not request.user.is_staff and request.user.role not in ('JURY', 'ENSEIGNANT'):
         messages.error(request, 'Accès non autorisé.')
         return redirect('home')
     
     etudiant = get_object_or_404(Etudiant, matricule_et=matricule)
-    inscriptions = Inscription.objects.filter(matricule_etudiant=etudiant)
-    evaluations = Evaluation.objects.filter(matricule_etudiant=etudiant)
+    inscriptions = Inscription.objects.filter(matricule_etudiant=etudiant).select_related('code_classe')
+    evaluations = Evaluation.objects.filter(matricule_etudiant=etudiant).select_related('code_ue', 'code_ec', 'code_ec__code_ue')
     
+    # Récupérer les UEs par inscription (via la classe)
+    ues_par_inscription = {}
+    for insc in inscriptions:
+        ues = UE.objects.filter(classe=insc.code_classe).order_by('semestre', 'code_ue')
+        if ues.exists():
+            ues_par_inscription[insc.code_inscription] = {
+                'inscription': insc,
+                'ues': ues,
+            }
+    
+    # Récupérer résumé des dettes
+    dettes_compensees = InscriptionUE.objects.filter(
+        matricule_etudiant=etudiant,
+        type_inscription='DETTE_COMPENSEE',
+    ).select_related('code_ue', 'code_ec', 'code_classe')
+    dettes_liquidees = InscriptionUE.objects.filter(
+        matricule_etudiant=etudiant,
+        type_inscription='DETTE_LIQUIDEE',
+    ).select_related('code_ue', 'code_ec', 'code_classe')
+
+    # Auto-liquider les dettes si Evaluation VALIDE existe
+    nb_auto_liquidees = 0
+    for dette in dettes_compensees:
+        filtre_eval = {'matricule_etudiant': etudiant, 'statut': 'VALIDE',
+                       'annee_academique': dette.annee_academique}
+        if dette.code_ec:
+            filtre_eval['code_ec'] = dette.code_ec
+        elif dette.code_ue:
+            filtre_eval['code_ue'] = dette.code_ue
+        else:
+            continue
+
+        # Vérifier Deliberation ou Evaluation
+        filtre_delib = {'matricule_etudiant': etudiant, 'statut__in': ['VALIDE', 'VALIDE_COMP']}
+        if dette.code_ec:
+            filtre_delib['code_ec'] = dette.code_ec
+        elif dette.code_ue:
+            filtre_delib['code_ue'] = dette.code_ue
+
+        if Deliberation.objects.filter(**filtre_delib).exists() or Evaluation.objects.filter(**filtre_eval).exists():
+            dette.type_inscription = 'DETTE_LIQUIDEE'
+            dette.save(update_fields=['type_inscription'])
+            nb_auto_liquidees += 1
+
+    # Re-compter après auto-liquidation
+    nb_compensees = InscriptionUE.objects.filter(
+        matricule_etudiant=etudiant, type_inscription='DETTE_COMPENSEE').count()
+    nb_liquidees_count = InscriptionUE.objects.filter(
+        matricule_etudiant=etudiant, type_inscription='DETTE_LIQUIDEE').count()
+    nb_total_dettes = nb_compensees + nb_liquidees_count
+
     context = {
         'etudiant': etudiant,
         'inscriptions': inscriptions,
         'evaluations': evaluations,
+        'ues_par_inscription': ues_par_inscription,
+        'nb_dettes_compensees': nb_compensees,
+        'nb_dettes_liquidees': nb_liquidees_count,
+        'nb_total_dettes': nb_total_dettes,
     }
     return render(request, 'gestion/voir_etudiant.html', context)
+
+
+@login_required
+def historique_academique_etudiant(request, matricule):
+    """Historique académique complet d'un étudiant : année → classe → décision → crédits"""
+    if not request.user.is_staff and request.user.role not in ('JURY', 'ENSEIGNANT'):
+        messages.error(request, 'Accès non autorisé.')
+        return redirect('home')
+
+    etudiant = get_object_or_404(Etudiant, matricule_et=matricule)
+    inscriptions = Inscription.objects.filter(
+        matricule_etudiant=etudiant
+    ).select_related('code_classe', 'cohorte').order_by('annee_academique')
+
+    parcours = []
+    for ins in inscriptions:
+        classe = ins.code_classe
+        annee = ins.annee_academique
+        niveau = classe.code_niveau_id if classe else '?'
+        mention = classe.code_mention_id if classe else '?'
+
+        # Calculer crédits validés pour cette année via Deliberation
+        delibs_valides = Deliberation.objects.filter(
+            matricule_etudiant=etudiant,
+            annee_academique=annee,
+            statut__in=['VALIDE', 'VALIDE_COMP'],
+            code_classe=classe,
+        ).select_related('code_ue', 'code_ec')
+
+        credits_annee = 0
+        codes_comptes = set()
+        for d in delibs_valides:
+            if d.code_ec:
+                key = f"EC-{d.code_ec.code_ec}"
+                if key not in codes_comptes:
+                    credits_annee += d.code_ec.credit or 0
+                    codes_comptes.add(key)
+            elif d.code_ue:
+                key = f"UE-{d.code_ue.code_ue}"
+                if key not in codes_comptes:
+                    credits_annee += d.code_ue.credit or 0
+                    codes_comptes.add(key)
+
+        # Dettes en cours pour cette année
+        dettes = InscriptionUE.objects.filter(
+            matricule_etudiant=etudiant,
+            annee_academique=annee,
+            type_inscription='DETTE_COMPENSEE',
+        ).count()
+
+        parcours.append({
+            'annee': annee,
+            'classe': classe.code_classe if classe else '-',
+            'niveau': niveau,
+            'mention': mention,
+            'cohorte': ins.cohorte.code_cohorte if ins.cohorte else '-',
+            'decision': ins.get_decision_annuelle_display() if ins.decision_annuelle else None,
+            'decision_code': ins.decision_annuelle,
+            'credits_valides': credits_annee,
+            'dettes': dettes,
+        })
+
+    # Crédits cumulés globaux (tous niveaux confondus pour la mention)
+    if parcours:
+        mention = parcours[-1]['mention']
+        all_delibs = Deliberation.objects.filter(
+            matricule_etudiant=etudiant,
+            statut__in=['VALIDE', 'VALIDE_COMP'],
+            code_classe__code_mention_id=mention,
+        ).select_related('code_ue', 'code_ec')
+        credits_cumules = 0
+        codes_comptes = set()
+        for d in all_delibs:
+            if d.code_ec:
+                key = f"EC-{d.code_ec.code_ec}"
+                if key not in codes_comptes:
+                    credits_cumules += d.code_ec.credit or 0
+                    codes_comptes.add(key)
+            elif d.code_ue:
+                key = f"UE-{d.code_ue.code_ue}"
+                if key not in codes_comptes:
+                    credits_cumules += d.code_ue.credit or 0
+                    codes_comptes.add(key)
+    else:
+        credits_cumules = 0
+
+    context = {
+        'etudiant': etudiant,
+        'parcours': parcours,
+        'credits_cumules': credits_cumules,
+        'nb_annees': len(parcours),
+    }
+    return render(request, 'gestion/historique_academique.html', context)
+
+
+@login_required
+def suivi_dettes_etudiant(request, matricule):
+    """Suivi des dettes (InscriptionUE) d'un étudiant avec liquidation automatique"""
+    if not request.user.is_staff and request.user.role not in ('JURY', 'ENSEIGNANT'):
+        messages.error(request, 'Accès non autorisé.')
+        return redirect('home')
+
+    etudiant = get_object_or_404(Etudiant, matricule_et=matricule)
+
+    # Liquidation automatique : marquer DETTE_LIQUIDEE si une Deliberation ou Evaluation VALIDE existe
+    dettes_compensees = InscriptionUE.objects.filter(
+        matricule_etudiant=etudiant,
+        type_inscription='DETTE_COMPENSEE',
+    ).select_related('code_ue', 'code_ec', 'code_classe')
+
+    nb_liquidees = 0
+    for dette in dettes_compensees:
+        liquidee = False
+        # Vérifier d'abord dans Deliberation
+        filtre_delib = {'matricule_etudiant': etudiant, 'statut__in': ['VALIDE', 'VALIDE_COMP']}
+        if dette.code_ec:
+            filtre_delib['code_ec'] = dette.code_ec
+        elif dette.code_ue:
+            filtre_delib['code_ue'] = dette.code_ue
+        else:
+            continue
+        if Deliberation.objects.filter(**filtre_delib).exists():
+            liquidee = True
+        else:
+            # Vérifier aussi dans Evaluation (notes saisies mais pas encore délibérées)
+            filtre_eval = {'matricule_etudiant': etudiant, 'statut': 'VALIDE',
+                           'annee_academique': dette.annee_academique}
+            if dette.code_ec:
+                filtre_eval['code_ec'] = dette.code_ec
+            elif dette.code_ue:
+                filtre_eval['code_ue'] = dette.code_ue
+            if Evaluation.objects.filter(**filtre_eval).exists():
+                liquidee = True
+        if liquidee:
+            dette.type_inscription = 'DETTE_LIQUIDEE'
+            dette.save(update_fields=['type_inscription'])
+            nb_liquidees += 1
+
+    if nb_liquidees > 0:
+        messages.success(request, f'{nb_liquidees} dette(s) automatiquement liquidée(s).')
+
+    # Récupérer toutes les dettes (compensées et liquidées)
+    all_dettes = InscriptionUE.objects.filter(
+        matricule_etudiant=etudiant,
+    ).select_related('code_ue', 'code_ec', 'code_classe').order_by('annee_academique', 'type_inscription')
+
+    dettes_list = []
+    for d in all_dettes:
+        code = d.code_ec.code_ec if d.code_ec else (d.code_ue.code_ue if d.code_ue else '-')
+        intitule = '-'
+        credit = 0
+        if d.code_ec:
+            intitule = d.code_ec.intitule_ue or '-'
+            credit = d.code_ec.credit or 0
+        elif d.code_ue:
+            intitule = d.code_ue.intitule_ue or '-'
+            credit = d.code_ue.credit or 0
+
+        dettes_list.append({
+            'code': code,
+            'intitule': intitule,
+            'credit': credit,
+            'classe_origine': d.code_classe.code_classe if d.code_classe else '-',
+            'annee': d.annee_academique,
+            'type': d.get_type_inscription_display(),
+            'type_code': d.type_inscription,
+            'date': d.date_creation,
+        })
+
+    nb_compensees = sum(1 for d in dettes_list if d['type_code'] == 'DETTE_COMPENSEE')
+    nb_total_liquidees = sum(1 for d in dettes_list if d['type_code'] == 'DETTE_LIQUIDEE')
+
+    context = {
+        'etudiant': etudiant,
+        'dettes': dettes_list,
+        'nb_compensees': nb_compensees,
+        'nb_liquidees': nb_total_liquidees,
+        'nb_total': len(dettes_list),
+    }
+    return render(request, 'gestion/suivi_dettes.html', context)
 
 
 @login_required
@@ -8502,11 +10016,71 @@ def modifier_jury(request, code):
         return redirect('home')
     
     jury = get_object_or_404(Jury, code_jury=code)
+    old_president = jury.president
+    old_secretaire = jury.secretaire
     
     if request.method == 'POST':
         form = JuryForm(request.POST, instance=jury)
         if form.is_valid():
-            form.save()
+            new_jury = form.save(commit=False)
+            new_president = form.cleaned_data.get('president')
+            new_secretaire = form.cleaned_data.get('secretaire')
+            new_pres_mat = new_president.matricule_en if new_president else ''
+            new_sec_mat = new_secretaire.matricule_en if new_secretaire else ''
+            
+            annee_suffix = new_jury.annee_academique[-2:] if new_jury.annee_academique else ''
+            
+            # Si le président a changé, mettre à jour le compte User
+            if new_pres_mat != old_president:
+                username_pres = f"jury_pres_{new_jury.code_classe.code_classe}_{annee_suffix}" if annee_suffix else f"jury_pres_{new_jury.code_classe.code_classe}"
+                password_pres = get_random_string(12)
+                user_pres, _ = User.objects.get_or_create(
+                    username=username_pres,
+                    defaults={
+                        'first_name': new_president.nom_complet.split()[0] if new_president and new_president.nom_complet else '',
+                        'last_name': ' '.join(new_president.nom_complet.split()[1:]) if new_president and new_president.nom_complet and len(new_president.nom_complet.split()) > 1 else '',
+                        'role': 'JURY',
+                        'is_active': True
+                    }
+                )
+                user_pres.set_password(password_pres)
+                user_pres.first_name = new_president.nom_complet.split()[0] if new_president and new_president.nom_complet else ''
+                user_pres.last_name = ' '.join(new_president.nom_complet.split()[1:]) if new_president and new_president.nom_complet and len(new_president.nom_complet.split()) > 1 else ''
+                user_pres.is_active = True
+                user_pres.role = 'JURY'
+                user_pres.save()
+                new_jury.id_lgn = user_pres
+                new_jury.password_pres = password_pres
+                messages.info(request, f'Nouveau compte président: {username_pres} (mdp: {password_pres})')
+            
+            # Si le secrétaire a changé, mettre à jour le compte User
+            if new_sec_mat != old_secretaire:
+                username_sec = f"jury_sec_{new_jury.code_classe.code_classe}_{annee_suffix}" if annee_suffix else f"jury_sec_{new_jury.code_classe.code_classe}"
+                password_sec = get_random_string(12)
+                user_sec, _ = User.objects.get_or_create(
+                    username=username_sec,
+                    defaults={
+                        'first_name': new_secretaire.nom_complet.split()[0] if new_secretaire and new_secretaire.nom_complet else '',
+                        'last_name': ' '.join(new_secretaire.nom_complet.split()[1:]) if new_secretaire and new_secretaire.nom_complet and len(new_secretaire.nom_complet.split()) > 1 else '',
+                        'role': 'JURY',
+                        'is_active': True
+                    }
+                )
+                user_sec.set_password(password_sec)
+                user_sec.first_name = new_secretaire.nom_complet.split()[0] if new_secretaire and new_secretaire.nom_complet else ''
+                user_sec.last_name = ' '.join(new_secretaire.nom_complet.split()[1:]) if new_secretaire and new_secretaire.nom_complet and len(new_secretaire.nom_complet.split()) > 1 else ''
+                user_sec.is_active = True
+                user_sec.role = 'JURY'
+                user_sec.save()
+                new_jury.password_sec = password_sec
+                messages.info(request, f'Nouveau compte secrétaire: {username_sec} (mdp: {password_sec})')
+            
+            new_jury.president = new_pres_mat
+            new_jury.secretaire = new_sec_mat
+            membre = form.cleaned_data.get('membre')
+            new_jury.membre = membre.matricule_en if membre else ''
+            new_jury.save()
+            
             messages.success(request, 'Jury modifié avec succès!')
             return redirect('gestion_jurys')
     else:
@@ -8521,7 +10095,7 @@ def modifier_jury(request, code):
 
 @login_required
 def supprimer_jury(request, code):
-    """Supprimer un jury"""
+    """Supprimer un jury et désactiver les comptes User associés"""
     if not request.user.is_staff:
         messages.error(request, 'Accès non autorisé.')
         return redirect('home')
@@ -8529,8 +10103,25 @@ def supprimer_jury(request, code):
     jury = get_object_or_404(Jury, code_jury=code)
     
     if request.method == 'POST':
+        # Désactiver les comptes User liés au jury
+        annee_suffix = jury.annee_academique[-2:] if jury.annee_academique else ''
+        classe_code = jury.code_classe.code_classe if jury.code_classe else ''
+        usernames_to_deactivate = []
+        if annee_suffix and classe_code:
+            usernames_to_deactivate = [
+                f"jury_pres_{classe_code}_{annee_suffix}",
+                f"jury_sec_{classe_code}_{annee_suffix}",
+            ]
+        elif classe_code:
+            usernames_to_deactivate = [
+                f"jury_pres_{classe_code}",
+                f"jury_sec_{classe_code}",
+            ]
+        
+        deactivated = User.objects.filter(username__in=usernames_to_deactivate, role='JURY').update(is_active=False)
+        
         jury.delete()
-        messages.success(request, 'Jury supprimé avec succès!')
+        messages.success(request, f'Jury supprimé avec succès! ({deactivated} compte(s) désactivé(s))')
         return redirect('gestion_jurys')
     
     context = {'jury': jury}
@@ -10931,3 +12522,773 @@ from .views_jury_presence import (
     jury_imprimable_profils_tous
 )
 from .views_releve_pdf import jury_imprimable_releve
+
+
+@login_required
+@require_staff_or_roles(['GESTIONNAIRE', 'AGENT'])
+def suivi_cohorte(request):
+    """Vue de suivi des UE par cohorte"""
+    
+    cohortes = Cohorte.objects.all().select_related('code_mention')
+    ues = []
+    cohorte_selectionnee = None
+    total_credits = 0
+    
+    # Récupérer la cohorte sélectionnée
+    cohorte_id = request.GET.get('cohorte', '')
+    
+    if cohorte_id:
+        try:
+            cohorte_selectionnee = Cohorte.objects.select_related('code_mention').get(code_cohorte=cohorte_id)
+            
+            # Récupérer toutes les UE liées à la mention de cette cohorte
+            if cohorte_selectionnee.code_mention:
+                # Récupérer les classes liées à cette mention
+                from reglage.models import Classe
+                classes = Classe.objects.filter(code_mention=cohorte_selectionnee.code_mention)
+                
+                # Récupérer les UE liées à ces classes
+                ues = UE.objects.filter(classe__in=classes).select_related('classe').order_by('semestre', 'code_ue')
+                
+                # Calculer le total des crédits
+                total_credits = sum(ue.credit for ue in ues)
+        except Cohorte.DoesNotExist:
+            messages.error(request, 'Cohorte non trouvée.')
+    
+    context = {
+        'cohortes': cohortes,
+        'ues': ues,
+        'cohorte_selectionnee': cohorte_selectionnee,
+        'total_credits': total_credits,
+    }
+    return render(request, 'suivi/cohorte.html', context)
+
+
+# ========== FICHES DE COTATION ==========
+
+@login_required
+@require_gestionnaire_or_admin
+def gestion_fiches_cotation(request):
+    """Page de sélection de classe pour imprimer les fiches de cotation vides"""
+    from reglage.models import AnneeAcademique
+    classes = Classe.objects.all().order_by('code_classe')
+    annees = AnneeAcademique.objects.all().order_by('-code_anac')
+    annee_active = AnneeAcademique.get_annee_en_cours()
+    annee_default = annee_active.code_anac if annee_active else ''
+    # Semestres distincts issus des UE et EC
+    semestres_ue = list(UE.objects.values_list('semestre', flat=True).distinct())
+    semestres_ec = list(EC.objects.select_related('code_ue').values_list('code_ue__semestre', flat=True).distinct())
+    semestres = sorted(set(s for s in semestres_ue + semestres_ec if s is not None))
+    context = {
+        'classes': classes,
+        'annees': annees,
+        'annee_default': annee_default,
+        'semestres': semestres,
+    }
+    return render(request, 'gestion/fiches_cotation.html', context)
+
+
+@login_required
+@require_gestionnaire_or_admin
+def gestion_fiches_cotation_pdf(request):
+    """Génère un PDF avec toutes les fiches de cotation vides pour une classe donnée.
+    Une fiche par cours (UE/EC), avec la liste des étudiants inscrits et colonnes CC/Examen vides.
+    """
+    from io import BytesIO
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.units import cm
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    from reglage.models import AnneeAcademique
+
+    classe_code = request.GET.get('classe', '')
+    annee_code = request.GET.get('annee', '')
+    semestre_filtre = request.GET.get('semestre', '')
+
+    if not classe_code:
+        messages.error(request, 'Veuillez sélectionner une classe.')
+        return redirect('gestion_fiches_cotation')
+
+    try:
+        classe = Classe.objects.get(code_classe=classe_code)
+    except Classe.DoesNotExist:
+        messages.error(request, 'Classe introuvable.')
+        return redirect('gestion_fiches_cotation')
+
+    if not annee_code:
+        annee_active = AnneeAcademique.get_annee_en_cours()
+        annee_code = annee_active.code_anac if annee_active else ''
+
+    # Récupérer les étudiants inscrits dans cette classe/année, triés par nom
+    inscriptions = Inscription.objects.filter(
+        code_classe=classe,
+        annee_academique=annee_code,
+    ).select_related('matricule_etudiant').order_by('matricule_etudiant__nom_complet')
+    etudiants = [insc.matricule_etudiant for insc in inscriptions]
+
+    # Construire la map des cours (UE + EC) appartenant à cette classe
+    ues_qs = UE.objects.filter(classe_id=classe_code)
+    ecs_qs = EC.objects.filter(classe_id=classe_code)
+    if semestre_filtre:
+        try:
+            sem_int = int(semestre_filtre)
+            ues_qs = ues_qs.filter(semestre=sem_int)
+            ecs_qs = ecs_qs.filter(code_ue__semestre=sem_int)
+        except ValueError:
+            pass
+    ues_classe = list(ues_qs.order_by('semestre', 'code_ue'))
+    ecs_classe = list(ecs_qs.order_by('code_ec'))
+    cours_map = {}
+    for ue in ues_classe:
+        cours_map[ue.code_ue] = ue
+    for ec in ecs_classe:
+        cours_map[ec.code_ec] = ec
+    codes_cours_classe = set(cours_map.keys())
+
+    # Récupérer les attributions pour cette classe/année filtrées directement
+    attributions = Attribution.objects.filter(
+        annee_academique=annee_code,
+        code_cours__in=codes_cours_classe,
+    ).select_related('matricule_en', 'type_charge').order_by('matricule_en__nom_complet', 'code_cours')
+
+    fiches = []
+    for attr in attributions:
+        cours_obj = cours_map.get(attr.code_cours)
+        if cours_obj is not None:
+            fiches.append({'attribution': attr, 'cours': cours_obj})
+
+    if not fiches:
+        messages.warning(request, 'Aucun cours attribué trouvé pour cette classe et cette année.')
+        return redirect('gestion_fiches_cotation')
+
+    # Génération PDF
+    import os
+    from django.conf import settings
+    from PIL import Image as PILImage
+    from reportlab.platypus import Image as RLImage
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=1.5 * cm,
+        leftMargin=1.5 * cm,
+        topMargin=1.5 * cm,
+        bottomMargin=1.5 * cm,
+    )
+    page_w = A4[0] - 3 * cm  # largeur utile
+    styles = getSampleStyleSheet()
+    bureau_style = ParagraphStyle('bureau', parent=styles['Heading2'], fontSize=11, alignment=TA_CENTER, spaceAfter=2, textColor=colors.HexColor('#2c3e50'))
+    title_style = ParagraphStyle('title', parent=styles['Heading1'], fontSize=13, alignment=TA_CENTER, spaceAfter=4, textColor=colors.HexColor('#2c3e50'))
+    sub_style = ParagraphStyle('sub', parent=styles['Normal'], fontSize=9, alignment=TA_CENTER, spaceAfter=6)
+    white_style = ParagraphStyle('white', parent=styles['Normal'], fontSize=8, alignment=TA_LEFT, textColor=colors.white)
+    sig_style = ParagraphStyle('sig', parent=styles['Normal'], fontSize=8, alignment=TA_LEFT)
+
+    entete_path = os.path.join(settings.MEDIA_ROOT, 'entete.png')
+
+    story = []
+
+    for idx, fiche in enumerate(fiches):
+        attr = fiche['attribution']
+        cours = fiche['cours']
+        enseignant = attr.matricule_en
+        intitule = getattr(cours, 'intitule_ue', attr.code_cours)
+        credit = getattr(cours, 'credit', '-')
+        type_cours = attr.get_type_cours() or ''
+        # Semestre et UE parente
+        if type_cours == 'EC' and hasattr(cours, 'code_ue') and cours.code_ue:
+            ue_parente = cours.code_ue  # FK vers UE
+            semestre = getattr(ue_parente, 'semestre', '-')
+            ue_label = ue_parente.intitule_ue
+        else:
+            semestre = getattr(cours, 'semestre', '-')
+            ue_label = ''
+
+        # Image d'en-tête
+        if os.path.exists(entete_path):
+            pil_img = PILImage.open(entete_path)
+            iw, ih = pil_img.size
+            desired_w = page_w
+            desired_h = desired_w * (ih / iw)
+            story.append(RLImage(entete_path, width=desired_w, height=desired_h))
+            story.append(Spacer(1, 0.3 * cm))
+
+        # Titres
+        story.append(Paragraph(f"BUREAU DU JURY {classe.code_classe}", bureau_style))
+        story.append(Paragraph("FICHE DE COTATION", title_style))
+        story.append(Paragraph(
+            f"Classe : <b>{classe.code_classe} – {classe.designation_classe}</b> &nbsp;&nbsp;|&nbsp;&nbsp; "
+            f"Année académique : <b>{annee_code}</b>",
+            sub_style
+        ))
+        story.append(Spacer(1, 0.2 * cm))
+
+        # Infos cours/enseignant (texte blanc sur fond sombre)
+        grade_code = enseignant.grade.code_grade if enseignant.grade else '-'
+        if type_cours == 'EC':
+            col1_label = Paragraph(f"<b>UE :</b> {ue_label}", white_style)
+            col2_label = Paragraph(f"<b>EC :</b> {intitule}", white_style)
+        else:
+            col1_label = Paragraph(f"<b>UE :</b> {intitule}", white_style)
+            col2_label = Paragraph("", white_style)
+        row1 = [
+            col1_label,
+            col2_label,
+            Paragraph(f"<b>Semestre :</b> S{semestre}", white_style),
+            Paragraph(f"<b>Crédits :</b> {credit}", white_style),
+        ]
+        row2 = [
+            Paragraph(f"<b>Enseignant :</b> {enseignant.nom_complet}", white_style),
+            Paragraph(f"<b>Matricule :</b> {enseignant.matricule_en}", white_style),
+            Paragraph(f"<b>Grade :</b> {grade_code}", white_style),
+            Paragraph("", white_style),
+        ]
+        info_data = [row1, row2]
+        col_info = [page_w * 0.38, page_w * 0.22, page_w * 0.20, page_w * 0.20]
+        info_table = Table(info_data, colWidths=col_info)
+        info_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#2c3e50')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#4a6fa5')),
+            ('PADDING', (0, 0), (-1, -1), 6),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        story.append(info_table)
+        story.append(Spacer(1, 0.4 * cm))
+
+        # Tableau des étudiants (vide, sans Matricule ni Observations)
+        header = ['#', 'Nom complet', 'CC (/10)', 'Examen (/10)', 'Note Finale (/20)', 'Rattrapage (/20)']
+        col_widths = [1*cm, page_w - 1*cm - 2.8*cm - 3.2*cm - 3.8*cm - 3*cm, 2.8*cm, 3.2*cm, 3.8*cm, 3*cm]
+        table_data = [header]
+        for i, etud in enumerate(etudiants, 1):
+            table_data.append([str(i), etud.nom_complet, '', '', '', ''])
+
+        t = Table(table_data, colWidths=col_widths, repeatRows=1)
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#34495e')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 8),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+            ('ALIGN', (2, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0f4f8')]),
+            ('ROWHEIGHT', (0, 1), (-1, -1), 20),
+        ]))
+        story.append(t)
+        story.append(Spacer(1, 0.8 * cm))
+        story.append(Paragraph(
+            "<b>Signature de l'enseignant :</b> ____________________________"
+            "&nbsp;&nbsp;&nbsp;&nbsp;<b>Date :</b> ____________________",
+            sig_style
+        ))
+
+        # Saut de page entre fiches (sauf la dernière)
+        if idx < len(fiches) - 1:
+            story.append(PageBreak())
+
+    doc.build(story)
+    buffer.seek(0)
+    filename = f"fiches_cotation_{classe_code}_{annee_code}.pdf"
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    return response
+
+
+@login_required
+def enseignant_fiche_cotation_pdf(request, code_cours, annee):
+    """Génère la fiche de cotation PDF pour un enseignant (avec les notes saisies)."""
+    from io import BytesIO
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.units import cm
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+
+    enseignant = get_simulated_enseignant(request)
+    if not enseignant:
+        messages.error(request, 'Profil enseignant non trouvé.')
+        return redirect('home')
+
+    # Vérifier l'attribution
+    attribution = Attribution.objects.filter(
+        matricule_en=enseignant,
+        code_cours=code_cours,
+        annee_academique=annee,
+    ).first()
+    if not attribution:
+        messages.error(request, "Vous n'êtes pas autorisé à imprimer cette fiche.")
+        return redirect('enseignant_mes_cours')
+
+    # Infos cours
+    cours_obj = attribution.get_cours_object()
+    intitule = getattr(cours_obj, 'intitule_ue', code_cours)
+    credit = getattr(cours_obj, 'credit', '-')
+    type_cours = attribution.get_type_cours() or ''
+    # classe_id est la PK string de Classe (FK brute)
+    classe_code = getattr(cours_obj, 'classe_id', None)
+    # Semestre et UE parente
+    if type_cours == 'EC' and cours_obj and hasattr(cours_obj, 'code_ue') and cours_obj.code_ue:
+        ue_parente = cours_obj.code_ue
+        semestre = getattr(ue_parente, 'semestre', '-')
+        ue_label = ue_parente.intitule_ue
+    else:
+        semestre = getattr(cours_obj, 'semestre', '-')
+        ue_label = ''
+
+    # Étudiants inscrits
+    etudiants_data = []
+    if classe_code:
+        inscriptions = Inscription.objects.filter(
+            code_classe_id=classe_code,
+            annee_academique=annee,
+        ).select_related('matricule_etudiant').order_by('matricule_etudiant__nom_complet')
+
+        for i, insc in enumerate(inscriptions, 1):
+            etud = insc.matricule_etudiant
+            # Récupérer l'évaluation existante
+            if type_cours == 'UE':
+                ev = Evaluation.objects.filter(
+                    matricule_etudiant=etud,
+                    code_ue__code_ue=code_cours,
+                    annee_academique=annee,
+                ).first()
+            else:
+                ev = Evaluation.objects.filter(
+                    matricule_etudiant=etud,
+                    code_ec__code_ec=code_cours,
+                    annee_academique=annee,
+                ).first()
+
+            cc = f"{ev.cc:.1f}" if ev and ev.cc is not None else ''
+            examen = f"{ev.examen:.1f}" if ev and ev.examen is not None else ''
+            note_finale = ''
+            note_finale_val = None
+            if ev and ev.cc is not None and ev.examen is not None:
+                note_finale_val = round(ev.cc * 0.4 + ev.examen * 0.6, 2)
+                note_finale = f"{note_finale_val:.2f}"
+            rattrapage = f"{ev.rattrapage:.1f}" if ev and ev.rattrapage is not None else ''
+            rachat = f"{ev.rachat:.1f}" if ev and ev.rachat is not None else ''
+
+            etudiants_data.append({
+                'num': i,
+                'matricule': etud.matricule_et,
+                'nom': etud.nom_complet,
+                'cc': cc,
+                'examen': examen,
+                'note_finale': note_finale,
+                'note_finale_val': note_finale_val,
+                'rattrapage': rattrapage,
+                'rachat': rachat,
+            })
+
+    # Génération PDF
+    import os
+    from django.conf import settings
+    from PIL import Image as PILImage
+    from reportlab.platypus import Image as RLImage
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=1.5 * cm,
+        leftMargin=1.5 * cm,
+        topMargin=1.5 * cm,
+        bottomMargin=1.5 * cm,
+    )
+    page_w = A4[0] - 3 * cm
+    styles = getSampleStyleSheet()
+    bureau_style = ParagraphStyle('bureau', parent=styles['Heading2'], fontSize=11, alignment=TA_CENTER, spaceAfter=2, textColor=colors.HexColor('#2c3e50'))
+    title_style = ParagraphStyle('title', parent=styles['Heading1'], fontSize=13, alignment=TA_CENTER, spaceAfter=4, textColor=colors.HexColor('#2c3e50'))
+    sub_style = ParagraphStyle('sub', parent=styles['Normal'], fontSize=9, alignment=TA_CENTER, spaceAfter=6)
+    white_style = ParagraphStyle('white', parent=styles['Normal'], fontSize=8, alignment=TA_LEFT, textColor=colors.white)
+    sig_style = ParagraphStyle('sig', parent=styles['Normal'], fontSize=8, alignment=TA_LEFT)
+
+    entete_path = os.path.join(settings.MEDIA_ROOT, 'entete.png')
+    # Récupérer le code classe pour le titre
+    classe_label = str(classe_code) if classe_code else code_cours
+
+    story = []
+
+    # Image d'en-tête
+    if os.path.exists(entete_path):
+        pil_img = PILImage.open(entete_path)
+        iw, ih = pil_img.size
+        desired_w = page_w
+        desired_h = desired_w * (ih / iw)
+        story.append(RLImage(entete_path, width=desired_w, height=desired_h))
+        story.append(Spacer(1, 0.3 * cm))
+
+    # Titres
+    story.append(Paragraph(f"BUREAU DU JURY {classe_label}", bureau_style))
+    story.append(Paragraph("FICHE DE COTATION", title_style))
+    story.append(Paragraph(f"Année académique : <b>{annee}</b>", sub_style))
+    story.append(Spacer(1, 0.2 * cm))
+
+    # Infos cours/enseignant (texte blanc sur fond sombre)
+    grade_code = enseignant.grade.code_grade if enseignant.grade else '-'
+    if type_cours == 'EC':
+        col1_label = Paragraph(f"<b>UE :</b> {ue_label}", white_style)
+        col2_label = Paragraph(f"<b>EC :</b> {intitule}", white_style)
+    else:
+        col1_label = Paragraph(f"<b>UE :</b> {intitule}", white_style)
+        col2_label = Paragraph("", white_style)
+    col_info = [page_w * 0.38, page_w * 0.22, page_w * 0.20, page_w * 0.20]
+    info_data = [
+        [
+            col1_label,
+            col2_label,
+            Paragraph(f"<b>Semestre :</b> S{semestre}", white_style),
+            Paragraph(f"<b>Crédits :</b> {credit}", white_style),
+        ],
+        [
+            Paragraph(f"<b>Enseignant :</b> {enseignant.nom_complet}", white_style),
+            Paragraph(f"<b>Matricule :</b> {enseignant.matricule_en}", white_style),
+            Paragraph(f"<b>Grade :</b> {grade_code}", white_style),
+            Paragraph("", white_style),
+        ],
+    ]
+    info_table = Table(info_data, colWidths=col_info)
+    info_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#2c3e50')),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#4a6fa5')),
+        ('PADDING', (0, 0), (-1, -1), 6),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    story.append(info_table)
+    story.append(Spacer(1, 0.4 * cm))
+
+    # Tableau des étudiants avec notes (sans Matricule, Observations ni Rachat)
+    header = ['#', 'Nom complet', 'CC (/10)', 'Examen (/10)', 'Note Finale (/20)', 'Rattrapage (/20)']
+    col_widths = [1*cm, page_w - 1*cm - 2.8*cm - 3.2*cm - 3.8*cm - 3*cm, 2.8*cm, 3.2*cm, 3.8*cm, 3*cm]
+    table_data = [header]
+    for etud in etudiants_data:
+        table_data.append([
+            str(etud['num']),
+            etud['nom'],
+            etud['cc'],
+            etud['examen'],
+            etud['note_finale'],
+            etud['rattrapage'],
+        ])
+
+    t = Table(table_data, colWidths=col_widths, repeatRows=1)
+    style_cmds = [
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#34495e')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+        ('ALIGN', (2, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0f4f8')]),
+        ('ROWHEIGHT', (0, 1), (-1, -1), 20),
+    ]
+    # Coloriser en rouge les notes finales < 10
+    for row_idx, etud in enumerate(etudiants_data, 1):
+        val = etud.get('note_finale_val')
+        if val is not None and val < 10:
+            style_cmds.append(('TEXTCOLOR', (4, row_idx), (4, row_idx), colors.red))
+            style_cmds.append(('FONTNAME', (4, row_idx), (4, row_idx), 'Helvetica-Bold'))
+    t.setStyle(TableStyle(style_cmds))
+    story.append(t)
+    story.append(Spacer(1, 0.8 * cm))
+    story.append(Paragraph(
+        "<b>Signature de l'enseignant :</b> ____________________________"
+        "&nbsp;&nbsp;&nbsp;&nbsp;<b>Date :</b> ____________________",
+        sig_style
+    ))
+
+    doc.build(story)
+    buffer.seek(0)
+    filename = f"fiche_cotation_{code_cours}_{annee}.pdf"
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    return response
+
+
+@login_required
+def jury_fiche_cotation_excel(request, code_cours, annee):
+    """Télécharger la fiche de cotation Excel d'un cours (accès jury).
+    Réutilise la même logique que telecharger_grille_evaluation de l'enseignant."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from io import BytesIO
+
+    jury = get_jury_for_user(request)
+    if not jury:
+        messages.error(request, 'Profil jury non trouvé.')
+        return redirect('home')
+
+    classe = jury.code_classe
+    code_classe_str = classe.code_classe
+
+    # Identifier le cours (UE ou EC)
+    cours_info = {'code': code_cours, 'intitule': code_cours, 'type': None, 'classe': None}
+    try:
+        ue = UE.objects.get(code_ue=code_cours)
+        cours_info['intitule'] = ue.intitule_ue
+        cours_info['type'] = 'UE'
+        cours_info['classe'] = ue.classe
+    except UE.DoesNotExist:
+        try:
+            ec = EC.objects.get(code_ec=code_cours)
+            cours_info['intitule'] = ec.intitule_ue
+            cours_info['type'] = 'EC'
+            cours_info['classe'] = ec.classe
+        except EC.DoesNotExist:
+            messages.error(request, 'Cours introuvable.')
+            return redirect('jury_grille_cours')
+
+    # Vérifier si rattrapage/rachat activé
+    rattrapage_actif = False
+    rachat_actif = False
+    if cours_info.get('classe'):
+        param_eval = ParametreEvaluation.objects.filter(
+            code_classe__code_classe=cours_info['classe'],
+            annee_academique=annee
+        ).first()
+        if param_eval:
+            rattrapage_actif = param_eval.rattrapage_actif
+            rachat_actif = param_eval.rachat_actif
+
+    # Récupérer les étudiants et leurs évaluations
+    data = []
+    if cours_info.get('classe'):
+        inscriptions = Inscription.objects.filter(
+            code_classe__code_classe=cours_info['classe'],
+            annee_academique=annee
+        ).select_related('matricule_etudiant')
+
+        for insc in inscriptions:
+            eval_existante = Evaluation.objects.filter(
+                matricule_etudiant=insc.matricule_etudiant,
+                code_ue__code_ue=code_cours if cours_info['type'] == 'UE' else None,
+                code_ec__code_ec=code_cours if cours_info['type'] == 'EC' else None,
+            ).first()
+
+            row = {
+                'Matricule': insc.matricule_etudiant.matricule_et,
+                'Nom Complet': insc.matricule_etudiant.nom_complet,
+                'CC (0-10)': eval_existante.cc if eval_existante and eval_existante.cc else '',
+                'Examen (0-10)': eval_existante.examen if eval_existante and eval_existante.examen else '',
+            }
+            if rattrapage_actif:
+                row['Rattrapage (0-20)'] = eval_existante.rattrapage if eval_existante and eval_existante.rattrapage else ''
+            if rachat_actif:
+                row['Rachat (0-20)'] = eval_existante.rachat if eval_existante and eval_existante.rachat else ''
+            data.append(row)
+
+    # Créer le fichier Excel — même format que telecharger_grille_evaluation
+    df = pd.DataFrame(data)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Grille d'évaluation"
+
+    # En-tête du document
+    ws.merge_cells('A1:F1')
+    ws['A1'] = f"GRILLE D'ÉVALUATION - {cours_info['intitule']}"
+    ws['A1'].font = Font(bold=True, size=14, color="FFFFFF")
+    ws['A1'].fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
+    ws.row_dimensions[1].height = 30
+
+    ws['A2'] = f"Code: {code_cours}"
+    ws['B2'] = f"Année: {annee}"
+    ws['C2'] = f"Classe: {cours_info.get('classe', '-')}"
+    ws.row_dimensions[2].height = 20
+    ws.row_dimensions[3].height = 10
+
+    headers = list(df.columns) if not df.empty else ['Matricule', 'Nom Complet', 'CC (0-10)', 'Examen (0-10)']
+    header_row = 4
+
+    header_fill = PatternFill(start_color="2F5496", end_color="2F5496", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    thin_border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin')
+    )
+
+    for col_idx, header in enumerate(headers, 1):
+        cell = ws.cell(row=header_row, column=col_idx, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = thin_border
+    ws.row_dimensions[header_row].height = 25
+
+    data_alignment = Alignment(horizontal='center', vertical='center')
+    data_font = Font(size=11)
+    alt_fill = PatternFill(start_color="D6DCE5", end_color="D6DCE5", fill_type="solid")
+
+    for row_idx, row_data in enumerate(df.values, header_row + 1):
+        for col_idx, value in enumerate(row_data, 1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.border = thin_border
+            cell.font = data_font
+            if col_idx <= 2:
+                cell.alignment = Alignment(horizontal='left', vertical='center')
+            else:
+                cell.alignment = data_alignment
+            if (row_idx - header_row) % 2 == 0:
+                cell.fill = alt_fill
+
+    ws.column_dimensions['A'].width = 15
+    ws.column_dimensions['B'].width = 35
+    ws.column_dimensions['C'].width = 12
+    ws.column_dimensions['D'].width = 14
+    ws.column_dimensions['E'].width = 16
+    ws.column_dimensions['F'].width = 14
+
+    last_row = header_row + len(df) + 2
+    ws.cell(row=last_row, column=1, value="Instructions:").font = Font(bold=True, italic=True)
+    ws.cell(row=last_row + 1, column=1, value="• CC et Examen : notes sur 10").font = Font(italic=True, size=10)
+    ws.cell(row=last_row + 2, column=1, value="• Rattrapage et Rachat : notes sur 20").font = Font(italic=True, size=10)
+    ws.cell(row=last_row + 3, column=1, value="• Ne modifiez pas les colonnes Matricule et Nom").font = Font(italic=True, size=10, color="FF0000")
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    response = HttpResponse(buffer.read(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename=grille_{code_cours}_{annee}.xlsx'
+    return response
+
+
+@login_required
+def jury_importer_grille_evaluation(request, code_cours, annee):
+    """Importer les notes depuis un fichier Excel - Vue Jury"""
+    jury = get_jury_for_user(request)
+    if not jury:
+        messages.error(request, 'Profil jury non trouvé.')
+        return redirect('home')
+
+    try:
+        classe = jury.code_classe
+
+        # Vérifier que le cours appartient à la classe du jury
+        cours_type = None
+        cours_classe = None
+        try:
+            ue_obj = UE.objects.get(code_ue=code_cours)
+            cours_type = 'UE'
+            cours_classe = ue_obj.classe
+        except UE.DoesNotExist:
+            try:
+                ec_obj = EC.objects.get(code_ec=code_cours)
+                cours_type = 'EC'
+                cours_classe = ec_obj.classe
+            except EC.DoesNotExist:
+                messages.error(request, 'Cours non trouvé.')
+                return redirect('jury_grille_cours')
+
+        cours_classe_code = cours_classe.code_classe if cours_classe else None
+        if cours_classe_code != classe.code_classe:
+            messages.error(request, "Ce cours n'appartient pas à votre classe.")
+            return redirect('jury_grille_cours')
+
+        if request.method == 'POST' and request.FILES.get('fichier_excel'):
+            fichier = request.FILES['fichier_excel']
+
+            try:
+                # Les en-têtes sont à la ligne 4 (index 3) dans le fichier exporté
+                df = pd.read_excel(fichier, header=3)
+                if 'Matricule' not in df.columns:
+                    fichier.seek(0)
+                    df = pd.read_excel(fichier, header=0)
+                if 'Matricule' not in df.columns:
+                    raise ValueError("Le fichier Excel ne contient pas la colonne 'Matricule'. Utilisez le modèle téléchargé.")
+
+                # Récupérer le nom du membre du jury connecté
+                jury_nom = ''
+                if hasattr(jury, 'president'):
+                    try:
+                        ens_jury = Enseignant.objects.get(matricule_en=jury.president)
+                        jury_nom = ens_jury.nom_complet
+                    except Enseignant.DoesNotExist:
+                        jury_nom = jury.president
+                if not jury_nom:
+                    jury_nom = request.user.get_full_name() or request.user.username
+
+                count = 0
+                for _, row in df.iterrows():
+                    matricule = str(row.get('Matricule', '')).strip()
+                    if not matricule or matricule == 'nan':
+                        continue
+
+                    try:
+                        etudiant = Etudiant.objects.get(matricule_et=matricule)
+
+                        eval_data = {
+                            'matricule_etudiant': etudiant,
+                            'annee_academique': annee,
+                        }
+
+                        # CC
+                        cc_val = row.get('CC (0-10)', '')
+                        if pd.notna(cc_val) and cc_val != '':
+                            eval_data['cc'] = float(cc_val)
+
+                        # Examen
+                        examen_val = row.get('Examen (0-10)', '')
+                        if pd.notna(examen_val) and examen_val != '':
+                            eval_data['examen'] = float(examen_val)
+
+                        # Rattrapage
+                        rattrapage_val = row.get('Rattrapage (0-20)', '')
+                        if pd.notna(rattrapage_val) and rattrapage_val != '':
+                            eval_data['rattrapage'] = float(rattrapage_val)
+
+                        # Rachat
+                        rachat_val = row.get('Rachat (0-20)', '')
+                        if pd.notna(rachat_val) and rachat_val != '':
+                            eval_data['rachat'] = float(rachat_val)
+
+                        if cours_type == 'UE':
+                            ue_obj_import = UE.objects.get(code_ue=code_cours)
+                            eval_obj, created = Evaluation.objects.update_or_create(
+                                matricule_etudiant=etudiant,
+                                code_ue=ue_obj_import,
+                                annee_academique=annee,
+                                code_classe=cours_classe,
+                                defaults=eval_data
+                            )
+                        else:
+                            ec_obj_import = EC.objects.get(code_ec=code_cours)
+                            eval_obj, created = Evaluation.objects.update_or_create(
+                                matricule_etudiant=etudiant,
+                                code_ec=ec_obj_import,
+                                annee_academique=annee,
+                                code_classe=cours_classe,
+                                defaults=eval_data
+                            )
+
+                        # Marquer comme modifié par le jury si c'est une mise à jour
+                        if not created:
+                            from django.utils import timezone as tz
+                            eval_obj.modifie_par_jury = True
+                            eval_obj.jury_modificateur = jury_nom
+                            eval_obj.date_modification_jury = tz.now()
+                            eval_obj.save()
+
+                        count += 1
+                    except Etudiant.DoesNotExist:
+                        continue
+
+                messages.success(request, f'{count} notes importées avec succès!')
+            except Exception as e:
+                messages.error(request, f"Erreur lors de l'importation: {str(e)}")
+
+        return redirect('jury_evaluer_cours', code_cours=code_cours, annee=annee)
+    except Exception as e:
+        messages.error(request, f"Erreur: {str(e)}")
+        return redirect('jury_grille_cours')

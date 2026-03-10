@@ -99,13 +99,14 @@
                 <!-- Section Dettes (informatif) -->
                 {% if dettes %}
                 <div class="alert alert-warning mt-3">
-                    <strong><i class="bi bi-exclamation-triangle me-1"></i>Dettes à reprendre (informatif):</strong>
+                    <strong><i class="bi bi-exclamation-triangle me-1"></i>Suivi des Dettes:</strong>
                     <table class="table table-sm table-bordered mt-2 mb-0 bg-white">
                         <thead>
                             <tr>
                                 <th>Code</th>
                                 <th>Intitulé</th>
                                 <th class="text-center">Classe d'origine</th>
+                                <th class="text-center">Statut</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -114,6 +115,13 @@
                                 <td><code>{% if dette.code_ec %}{{ dette.code_ec.code_ec }}{% else %}{{ dette.code_ue.code_ue }}{% endif %}</code></td>
                                 <td>{% if dette.code_ec %}{{ dette.code_ec.intitule_ue }}{% else %}{{ dette.code_ue.intitule_ue }}{% endif %}</td>
                                 <td class="text-center">{{ dette.code_classe.code_classe }}</td>
+                                <td class="text-center">
+                                    {% if dette.type_inscription == 'DETTE_LIQUIDEE' %}
+                                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Validée</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i>En cours</span>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>

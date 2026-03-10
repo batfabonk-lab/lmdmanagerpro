@@ -1,28 +1,29 @@
 {% extends 'base.html' %}
 
-{% block title %}Publier Résultats{% endblock %}
+{% block title %}Dépublier Résultats{% endblock %}
 
 {% block content %}
 <h2 class="mb-4">
-    <i class="bi bi-megaphone me-2"></i>
-    Publication des Résultats
+    <i class="bi bi-lock me-2"></i>
+    Dépublication des Résultats
 </h2>
 
 <div class="card">
-    <div class="card-header bg-success text-white">
-        <i class="bi bi-check-circle me-2"></i>
-        Confirmer la Publication
+    <div class="card-header bg-danger text-white">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        Confirmer la Dépublication
     </div>
     <div class="card-body">
-        <div class="alert alert-warning">
+        <div class="alert alert-danger">
             <i class="bi bi-exclamation-triangle me-2"></i>
-            <strong>Attention !</strong> Une fois publiés, les résultats seront visibles par tous les étudiants.
+            <strong>Attention !</strong> Cette action rendra les résultats invisibles pour tous les étudiants. Ils ne pourront plus consulter leurs notes ni leurs résultats.
         </div>
         
         <div class="mb-4">
             <h5>Informations du Jury</h5>
             <ul class="list-unstyled">
                 <li><strong>Code Jury:</strong> {{ jury.code_jury }}</li>
+                <li><strong>Classe:</strong> {{ jury.code_classe }}</li>
                 <li><strong>Président:</strong> {{ jury.president }}</li>
                 <li><strong>Secrétaire:</strong> {{ jury.secretaire }}</li>
                 <li><strong>Membre:</strong> {{ jury.membre }}</li>
@@ -39,22 +40,28 @@
         {% if jury.resultat_publie and jury.date_publication %}
         <div class="alert alert-info">
             <i class="bi bi-info-circle me-2"></i>
-            <strong>Dernière publication:</strong> Résultats publiés le {{ jury.date_publication|date:"d/m/Y à H:i" }}
+            <strong>État actuel:</strong> Résultats publiés le {{ jury.date_publication|date:"d/m/Y à H:i" }}
+        </div>
+        {% else %}
+        <div class="alert alert-warning">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong>État actuel:</strong> Les résultats ne sont pas publiés
         </div>
         {% endif %}
         
         <form method="post">
             {% csrf_token %}
             <div class="d-grid gap-2">
-                <button type="submit" class="btn btn-success btn-lg">
-                    <i class="bi bi-megaphone me-2"></i>
-                    Publier les Résultats
-                </button>
                 {% if jury.resultat_publie %}
-                <a href="{% url 'jury_depublier' %}" class="btn btn-danger btn-lg">
+                <button type="submit" class="btn btn-danger btn-lg" onclick="return confirm('Êtes-vous sûr de vouloir dépublier les résultats ? Les étudiants ne pourront plus y accéder.');">
                     <i class="bi bi-lock me-2"></i>
                     Dépublier les Résultats
-                </a>
+                </button>
+                {% else %}
+                <button type="button" class="btn btn-secondary btn-lg" disabled>
+                    <i class="bi bi-info-circle me-2"></i>
+                    Les résultats ne sont pas publiés
+                </button>
                 {% endif %}
                 <a href="{% url 'jury_dashboard' %}" class="btn btn-secondary">
                     <i class="bi bi-arrow-left me-2"></i>

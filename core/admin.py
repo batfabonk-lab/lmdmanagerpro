@@ -3,7 +3,8 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import (
     User, Section, Departement, UE, EC, Cohorte, 
     Etudiant, Enseignant, Classe, Inscription, Jury, Evaluation, Attribution,
-    CommuniqueDeliberation, CommentaireCours, EvaluationEnseignement, Deliberation
+    CommuniqueDeliberation, CommentaireCours, EvaluationEnseignement, Deliberation,
+    DocumentCours
 )
 
 # Personnalisation du site d'administration
@@ -157,8 +158,9 @@ class ECAdmin(admin.ModelAdmin):
 
 @admin.register(Cohorte)
 class CohorteAdmin(admin.ModelAdmin):
-    list_display = ['code_cohorte', 'lib_cohorte', 'debut']
+    list_display = ['code_cohorte', 'lib_cohorte', 'code_mention', 'debut']
     search_fields = ['code_cohorte', 'lib_cohorte']
+    list_filter = ['code_mention']
     date_hierarchy = 'debut'
 
 
@@ -266,8 +268,8 @@ class ClasseAdmin(admin.ModelAdmin):
 
 @admin.register(Inscription)
 class InscriptionAdmin(admin.ModelAdmin):
-    list_display = ['code_inscription', 'matricule_etudiant', 'annee_academique', 'code_classe', 'cohorte']
-    list_filter = ['annee_academique', 'code_classe']
+    list_display = ['code_inscription', 'matricule_etudiant', 'annee_academique', 'code_classe', 'cohorte', 'decision_annuelle']
+    list_filter = ['annee_academique', 'code_classe', 'decision_annuelle']
     search_fields = ['code_inscription', 'matricule_etudiant__nom_complet', 'annee_academique']
 
 
@@ -355,6 +357,13 @@ class AttributionAdmin(admin.ModelAdmin):
             'description': 'Attribuez un cours à l\'enseignant'
         }),
     )
+
+
+@admin.register(DocumentCours)
+class DocumentCoursAdmin(admin.ModelAdmin):
+    list_display = ['titre', 'code_cours', 'type_document', 'enseignant', 'annee_academique', 'date_ajout']
+    list_filter = ['type_document', 'annee_academique']
+    search_fields = ['titre', 'code_cours', 'enseignant__nom_complet']
 
 
 @admin.register(Deliberation)

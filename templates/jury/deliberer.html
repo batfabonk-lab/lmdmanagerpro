@@ -8,40 +8,40 @@
         <form method="post" class="m-0">
             {% csrf_token %}
             <input type="hidden" name="type" value="S1">
-            <button type="submit" class="btn {% if selected_type == 'S1' %}btn-success{% else %}btn-warning{% endif %}">
-                <i class="bi bi-clipboard-check me-2"></i>Délibérer Semestre {{ semestres_niveau.0 }}
+            <button type="submit" class="btn {% if selected_type == 'S1' %}btn-success{% else %}btn-warning{% endif %} position-relative">
+                <i class="bi bi-clipboard-check me-2"></i>Délibérer S{{ semestres_niveau.0 }}
+                {% if delib_s1_faite %}
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success border border-white" style="font-size:0.65rem;">
+                    <i class="bi bi-check-lg"></i> Fait
+                </span>
+                {% endif %}
             </button>
         </form>
         <form method="post" class="m-0">
             {% csrf_token %}
             <input type="hidden" name="type" value="S2">
-            <button type="submit" class="btn {% if selected_type == 'S2' %}btn-success{% else %}btn-warning{% endif %}">
-                <i class="bi bi-clipboard-check me-2"></i>Délibérer Semestre {{ semestres_niveau.1 }}
+            <button type="submit" class="btn {% if selected_type == 'S2' %}btn-success{% else %}btn-warning{% endif %} position-relative">
+                <i class="bi bi-clipboard-check me-2"></i>Délibérer S{{ semestres_niveau.1 }}
+                {% if delib_s2_faite %}
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success border border-white" style="font-size:0.65rem;">
+                    <i class="bi bi-check-lg"></i> Fait
+                </span>
+                {% endif %}
             </button>
         </form>
         <form method="post" class="m-0">
             {% csrf_token %}
             <input type="hidden" name="type" value="ANNEE">
-            <button type="submit" class="btn {% if selected_type == 'ANNEE' %}btn-success{% else %}btn-warning{% endif %}">
+            <button type="submit" class="btn {% if selected_type == 'ANNEE' %}btn-success{% else %}btn-warning{% endif %} position-relative">
                 <i class="bi bi-clipboard-check me-2"></i>Délibérer Année
+                {% if delib_annee_faite %}
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success border border-white" style="font-size:0.65rem;">
+                    <i class="bi bi-check-lg"></i> Fait
+                </span>
+                {% endif %}
             </button>
         </form>
-        
-        <!-- Bouton Passage Automatique -->
-        {% if classe and annee_code %}
-        <a href="{% url 'passage_automatique_classe_superieure' %}?classe={{ classe.code_classe }}&annee={{ annee_code }}" 
-           class="btn btn-primary">
-            <i class="bi bi-arrow-up-circle me-2"></i>Passage Automatique
-        </a>
-        {% endif %}
-        
-        <!-- Bouton Imprimer -->
-        {% if url_imprimables %}
-        <a href="{{ url_imprimables }}" class="btn btn-outline-secondary" title="Imprimer les résultats" target="_blank">
-            <i class="bi bi-printer-fill"></i>
-        </a>
-        {% endif %}
-        
+
         <!-- Bouton Annuler délibérations -->
         <div class="btn-group ms-auto" role="group">
             <button type="button" class="btn btn-outline-danger dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">

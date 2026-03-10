@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load dict_filters %}
 
 {% block title %}Mes Notes{% endblock %}
 
@@ -11,15 +12,25 @@
                     <i class="bi bi-journal-text me-2"></i>
                     Mes Notes
                 </h2>
+                {% if not jury_publie %}
+                <div class="alert alert-warning mb-2 py-2 px-3" style="background: rgba(255,193,7,0.2); border: 1px solid rgba(255,193,7,0.5);">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <small>Seules les notes de CC sont visibles. Les notes d'examen et moyennes finales seront disponibles après publication du jury.</small>
+                </div>
+                {% endif %}
                 <div class="d-flex flex-wrap gap-2 mb-2">
                     {% if annee_code %}
                     <span class="badge bg-light text-dark fs-6 px-3 py-2">{{ annee_code }}</span>
                     {% endif %}
+                    {% if jury_publie %}
                     {% for semestre, data in credits_par_semestre.items %}
+                    {% if semestres_deliberes|lookup:semestre %}
                     <span class="badge bg-info text-white fs-6 px-3 py-2">
                         <i class="bi bi-award me-1"></i>S{{ semestre }}: {{ data.credits_capitalises }}/{{ data.total_credits }}
                     </span>
+                    {% endif %}
                     {% endfor %}
+                    {% endif %}
                 </div>
                 <p class="mb-0 opacity-75">
                     <i class="bi bi-info-circle me-1"></i>Consultez vos évaluations et résultats
@@ -83,6 +94,7 @@
                     <small class="opacity-75">Code: {{ ue.code_ue }} | Semestre: {{ ue.semestre }}</small>
                 </div>
                 <div class="d-flex flex-column align-items-end">
+                    {% if jury_publie and semestres_deliberes|lookup:ue.semestre %}
                     {% for item in moyennes_ue_list %}
                         {% if item.ue == ue %}
                             <span class="badge bg-white text-dark fs-6 mb-1">
@@ -90,6 +102,7 @@
                             </span>
                         {% endif %}
                     {% endfor %}
+                    {% endif %}
                     <span class="badge bg-white text-dark fs-6">{{ ue.credit }} crédits</span>
                 </div>
             </div>
@@ -103,11 +116,13 @@
                             <tr>
                                 <th class="fw-semibold">EC</th>
                                 <th class="fw-semibold">CC</th>
+                                {% if jury_publie %}
                                 <th class="fw-semibold">Examen</th>
                                 <th class="fw-semibold">Rattrapage</th>
                                 <th class="fw-semibold">Rachat</th>
                                 <th class="fw-semibold">Note Finale</th>
                                 <th class="fw-semibold">Statut</th>
+                                {% endif %}
                                 <th class="fw-semibold">Actions</th>
                             </tr>
                         </thead>
@@ -130,11 +145,16 @@
                                         <span class="text-muted">-</span>
                                     {% endif %}
                                 </td>
+                                {% if jury_publie %}
                                 <td>
-                                    {% if item.evaluation.examen %}
-                                        {{ item.evaluation.examen|floatformat:1 }}/10
+                                    {% if semestres_deliberes|lookup:ue.semestre %}
+                                        {% if item.evaluation.examen %}
+                                            {{ item.evaluation.examen|floatformat:1 }}/10
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
                                     {% else %}
-                                        <span class="text-muted">-</span>
+                                        <span class="text-muted" title="Visible après délibération S{{ ue.semestre }}"><i class="bi bi-lock"></i></span>
                                     {% endif %}
                                 </td>
                                 <td>
@@ -151,16 +171,26 @@
                                         <span class="text-muted">-</span>
                                     {% endif %}
                                 </td>
-                                <td><span class="fs-5 fw-bold text-primary">{{ item.note_finale|floatformat:1 }}/20</span></td>
                                 <td>
-                                    {% if item.evaluation.statut == 'VALIDE' %}
-                                        <span class="badge bg-success">Validé</span>
-                                    {% elif item.evaluation.statut == 'NON_VALIDE' %}
-                                        <span class="badge bg-danger">Non validé</span>
+                                    {% if semestres_deliberes|lookup:ue.semestre %}
+                                        <span class="fs-5 fw-bold text-primary">{{ item.note_finale|floatformat:1 }}/20</span>
                                     {% else %}
-                                        <span class="badge bg-warning text-dark">En cours</span>
+                                        <span class="text-muted">-</span>
                                     {% endif %}
                                 </td>
+                                <td>
+                                    {% if item.delib_statut_code == 'VALIDE' or item.delib_statut_code == 'VALIDE_COMP' %}
+                                        <span class="badge bg-success">{{ item.delib_statut }}</span>
+                                        {% if item.delib_compense %}<br><small class="text-success"><i class="bi bi-arrow-repeat"></i> Compensé</small>{% endif %}
+                                    {% elif item.delib_statut_code == 'NON_VALIDE' %}
+                                        <span class="badge bg-danger">Non validé</span>
+                                    {% elif item.delib_statut_code %}
+                                        <span class="badge bg-warning text-dark">{{ item.delib_statut }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">En attente</span>
+                                    {% endif %}
+                                </td>
+                                {% endif %}
                                 <td>
                                     <button type="button" class="btn btn-sm btn-outline-warning" 
                                             data-bs-toggle="modal" 
@@ -190,19 +220,24 @@
                                 <small class="d-block text-muted">Évaluation directe</small>
                             {% endif %}
                         </div>
+                        {% if jury_publie %}
                         <div>
-                            {% if item.evaluation.statut == 'VALIDE' %}
-                                <span class="badge bg-success">Validé</span>
-                            {% elif item.evaluation.statut == 'NON_VALIDE' %}
+                            {% if item.delib_statut_code == 'VALIDE' or item.delib_statut_code == 'VALIDE_COMP' %}
+                                <span class="badge bg-success">{{ item.delib_statut }}</span>
+                                {% if item.delib_compense %}<br><small class="text-success"><i class="bi bi-arrow-repeat"></i> Compensé</small>{% endif %}
+                            {% elif item.delib_statut_code == 'NON_VALIDE' %}
                                 <span class="badge bg-danger">Non validé</span>
+                            {% elif item.delib_statut_code %}
+                                <span class="badge bg-warning text-dark">{{ item.delib_statut }}</span>
                             {% else %}
-                                <span class="badge bg-warning text-dark">En cours</span>
+                                <span class="badge bg-secondary">En attente</span>
                             {% endif %}
                         </div>
+                        {% endif %}
                     </div>
                     
                     <div class="row g-2 mb-2">
-                        <div class="col-6">
+                        <div class="{% if jury_publie %}col-6{% else %}col-12{% endif %}">
                             <div class="p-2 bg-light rounded">
                                 <div class="small text-muted">CC</div>
                                 <div class="fw-semibold">
@@ -214,14 +249,19 @@
                                 </div>
                             </div>
                         </div>
+                        {% if jury_publie %}
                         <div class="col-6">
                             <div class="p-2 bg-light rounded">
                                 <div class="small text-muted">Examen</div>
                                 <div class="fw-semibold">
-                                    {% if item.evaluation.examen %}
-                                        {{ item.evaluation.examen|floatformat:1 }}/10
+                                    {% if semestres_deliberes|lookup:ue.semestre %}
+                                        {% if item.evaluation.examen %}
+                                            {{ item.evaluation.examen|floatformat:1 }}/10
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
                                     {% else %}
-                                        <span class="text-muted">-</span>
+                                        <span class="text-muted"><i class="bi bi-lock"></i></span>
                                     {% endif %}
                                 </div>
                             </div>
@@ -254,8 +294,13 @@
                     
                     <div class="p-3 rounded text-center" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                         <div class="small text-white opacity-75">Note Finale</div>
+                        {% if semestres_deliberes|lookup:ue.semestre %}
                         <div class="fs-3 fw-bold text-white">{{ item.note_finale|floatformat:1 }}/20</div>
+                        {% else %}
+                        <div class="fs-5 text-white opacity-75"><i class="bi bi-lock me-1"></i>Après délibération S{{ ue.semestre }}</div>
+                        {% endif %}
                     </div>
+                    {% endif %}
                     
                     <div class="mt-3 text-center">
                         <button type="button" class="btn btn-sm btn-outline-warning w-100" 
@@ -349,8 +394,10 @@
                                     <tr>
                                         <th>UE/EC</th>
                                         <th>CC</th>
+                                        {% if jury_publie %}
                                         <th>Examen</th>
                                         <th>Note finale</th>
+                                        {% endif %}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -359,8 +406,10 @@
                                         <tr>
                                             <td>{% if item.ec %}{{ item.ec.code_ec }}{% else %}{{ ue.code_ue }}{% endif %}</td>
                                             <td>{{ item.evaluation.cc }}/20</td>
+                                            {% if jury_publie %}
                                             <td>{{ item.evaluation.examen }}/20</td>
                                             <td><strong>{{ item.note_finale|floatformat:1 }}/20</strong></td>
+                                            {% endif %}
                                         </tr>
                                         {% endfor %}
                                     {% endfor %}

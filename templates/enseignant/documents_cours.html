@@ -1,0 +1,115 @@
+{% extends 'enseignant/base_enseignant.html' %}
+
+{% block title %}Documents - {{ code_cours }}{% endblock %}
+{% block page_title %}Documents du cours{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h5 class="mb-1">
+            <i class="bi bi-file-earmark-pdf me-2 text-danger"></i>
+            {{ intitule }}
+        </h5>
+        <span class="badge bg-secondary">{{ code_cours }}</span>
+        <span class="badge bg-primary">{{ annee }}</span>
+    </div>
+    <a href="{% url 'enseignant_mes_cours' %}?annee={{ annee }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Retour
+    </a>
+</div>
+
+<!-- Formulaire d'upload -->
+<div class="card mb-4">
+    <div class="card-header bg-white">
+        <i class="bi bi-cloud-upload me-2"></i><strong>Ajouter un document</strong>
+    </div>
+    <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="upload">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Titre du document</label>
+                    <input type="text" name="titre" class="form-control" placeholder="Ex: Chapitre 1 - Introduction" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Type</label>
+                    <select name="type_document" class="form-select">
+                        {% for value, label in type_choices %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Fichier PDF</label>
+                    <input type="file" name="fichier" class="form-control" accept=".pdf" required>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-upload me-1"></i>Ajouter
+                    </button>
+                </div>
+            </div>
+            <small class="text-muted mt-2 d-block">Format accepté : PDF uniquement. Taille max : 10 Mo.</small>
+        </form>
+    </div>
+</div>
+
+<!-- Liste des documents -->
+<div class="card">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-folder2-open me-2"></i><strong>Documents publiés</strong></span>
+        <span class="badge bg-info">{{ documents|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        {% if documents %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Titre</th>
+                        <th>Type</th>
+                        <th>Date d'ajout</th>
+                        <th>Taille</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for doc in documents %}
+                    <tr>
+                        <td>
+                            <i class="bi bi-file-earmark-pdf text-danger me-1"></i>
+                            <strong>{{ doc.titre }}</strong>
+                        </td>
+                        <td><span class="badge bg-light text-dark">{{ doc.get_type_document_display }}</span></td>
+                        <td>{{ doc.date_ajout|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            {% widthratio doc.fichier.size 1024 1 %} Ko
+                        </td>
+                        <td class="text-end">
+                            <a href="{{ doc.fichier.url }}" class="btn btn-sm btn-outline-primary" target="_blank" title="Voir">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <form method="post" class="d-inline" onsubmit="return confirm('Supprimer ce document ?')">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="doc_id" value="{{ doc.id }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-folder display-1 text-muted"></i>
+            <p class="text-muted mt-3">Aucun document publié pour ce cours.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

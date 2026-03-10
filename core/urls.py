@@ -23,11 +23,13 @@ urlpatterns = [
     path('etudiant/resultats/', views.etudiant_resultats, name='etudiant_resultats'),
     path('etudiant/telecharger-bulletin/', views.etudiant_telecharger_bulletin, name='etudiant_telecharger_bulletin'),
     path('etudiant/bulletin-pdf/', views.etudiant_bulletin_pdf, name='etudiant_bulletin_pdf'),
+    path('etudiant/document/<int:doc_id>/telecharger/', views.etudiant_telecharger_document, name='etudiant_telecharger_document'),
     
     # URLs Enseignant
     path('enseignant/', views.enseignant_dashboard, name='enseignant_dashboard'),
     path('enseignant/profil/', views.enseignant_profil, name='enseignant_profil'),
     path('enseignant/mes-cours/', views.enseignant_mes_cours, name='enseignant_mes_cours'),
+    path('enseignant/documents/<str:code_cours>/<str:annee>/', views.enseignant_documents_cours, name='enseignant_documents_cours'),
     path('enseignant/commentaires/', views.enseignant_commentaires, name='enseignant_commentaires'),
     path('enseignant/appreciations/', views.enseignant_appreciations, name='enseignant_appreciations'),
     path('enseignant/evaluations/', views.enseignant_evaluations, name='enseignant_evaluations'),
@@ -52,14 +54,17 @@ urlpatterns = [
     path('jury/evaluations/<int:eval_id>/edit/', views.jury_evaluation_edit, name='jury_evaluation_edit'),
     path('jury/evaluations/<int:eval_id>/delete/', views.jury_evaluation_delete, name='jury_evaluation_delete'),
     path('jury/evaluer/<str:code_cours>/<str:annee>/', views.jury_evaluer_cours, name='jury_evaluer_cours'),
+    path('jury/evaluer/<str:code_cours>/<str:annee>/importer/', views.jury_importer_grille_evaluation, name='jury_importer_grille_evaluation'),
     path('jury/toggle-parametre/', views.jury_toggle_parametre, name='jury_toggle_parametre'),
     path('jury/deliberer/', views.jury_deliberer, name='jury_deliberer'),
+    path('jury/deliberer/resultats-pdf/', views.jury_deliberer_resultats_pdf, name='jury_deliberer_resultats_pdf'),
     path('jury/deliberer/annuler/', views.jury_annuler_deliberation, name='jury_annuler_deliberation'),
     path('jury/deliberations/', views.jury_deliberations, name='jury_deliberations'),
     path('jury/deliberations/action/', views.jury_deliberations_action, name='jury_deliberations_action'),
     path('jury/deliberations/<int:delib_id>/edit/', views.jury_deliberation_edit, name='jury_deliberation_edit'),
     path('jury/deliberations/<int:delib_id>/delete/', views.jury_deliberation_delete, name='jury_deliberation_delete'),
     path('jury/publier/', views.jury_publier, name='jury_publier'),
+    path('jury/depublier/', views.jury_depublier, name='jury_depublier'),
     path('jury/communique/', views.jury_communique, name='jury_communique'),
     path('jury/imprimables/', views.jury_imprimables, name='jury_imprimables'),
     path('jury/imprimables/palmares/', views.jury_imprimable_palmare, name='jury_imprimable_palmare'),
@@ -72,6 +77,8 @@ urlpatterns = [
     path('jury/imprimables/profils-tous/', views.jury_imprimable_profils_tous, name='jury_imprimable_profils_tous'),
     path('jury/imprimables/releves-selectionnes/', views_jury_presence.jury_imprimable_releves_selectionnes, name='jury_imprimable_releves_selectionnes'),
     path('jury/imprimables/profils-selectionnes/', views_jury_presence.jury_imprimable_profils_selectionnes, name='jury_imprimable_profils_selectionnes'),
+    path('jury/imprimables/palmares-selectionnes/', views_jury_presence.jury_imprimable_palmares_selectionnes, name='jury_imprimable_palmares_selectionnes'),
+    path('jury/imprimables/grille-dashboard/', views.jury_dashboard_grille_pdf, name='jury_dashboard_grille_pdf'),
     path('jury/presence-deliberation/', views.jury_presence_deliberation, name='jury_presence_deliberation'),
     path('jury/cohorte/', views.jury_cohorte, name='jury_cohorte'),
     path('jury/recours/', views.jury_recours, name='jury_recours'),
@@ -87,6 +94,7 @@ urlpatterns = [
     path('gestion/utilisateurs/modifier/<int:user_id>/', views.modifier_utilisateur, name='modifier_utilisateur'),
     path('gestion/utilisateurs/supprimer/<int:user_id>/', views.supprimer_utilisateur, name='supprimer_utilisateur'),
     path('gestion/utilisateurs/reinitialiser/<int:user_id>/', views.reinitialiser_mot_de_passe, name='reinitialiser_mot_de_passe'),
+    path('gestion/utilisateurs/toggle-actif/<int:user_id>/', views.toggle_utilisateur_actif, name='toggle_utilisateur_actif'),
     path('gestion/utilisateurs/supprimer-selection/', views.supprimer_utilisateurs_selection, name='supprimer_utilisateurs_selection'),
     path('gestion/utilisateurs/exporter-credentials/', views.exporter_credentials_utilisateurs, name='exporter_credentials_utilisateurs'),
     path('gestion/etudiants/', views.gestion_etudiants, name='gestion_etudiants'),
@@ -98,6 +106,8 @@ urlpatterns = [
     path('gestion/jurys/', views.gestion_jurys, name='gestion_jurys'),
     path('gestion/cohortes/', views.gestion_cohortes, name='gestion_cohortes'),
     path('gestion/inscriptions/', views.gestion_inscriptions, name='gestion_inscriptions'),
+    path('gestion/inscriptions/pdf/', views.gestion_inscriptions_pdf, name='gestion_inscriptions_pdf'),
+    path('suivi/cohorte/', views.suivi_cohorte, name='suivi_cohorte'),
     path('statistiques/', views.statistiques, name='statistiques'),
     path('historique/', views.historique_actions, name='historique_actions'),
     
@@ -105,6 +115,8 @@ urlpatterns = [
     path('gestion/etudiants/modifier/<str:matricule>/', views.modifier_etudiant, name='modifier_etudiant'),
     path('gestion/etudiants/supprimer/<str:matricule>/', views.supprimer_etudiant, name='supprimer_etudiant'),
     path('gestion/etudiants/voir/<str:matricule>/', views.voir_etudiant, name='voir_etudiant'),
+    path('gestion/etudiants/historique/<str:matricule>/', views.historique_academique_etudiant, name='historique_academique_etudiant'),
+    path('gestion/etudiants/dettes/<str:matricule>/', views.suivi_dettes_etudiant, name='suivi_dettes_etudiant'),
     
     # URLs Actions Enseignants
     path('gestion/enseignants/voir/<str:matricule>/', views.voir_enseignant, name='voir_enseignant'),
@@ -180,6 +192,12 @@ urlpatterns = [
     path('gestionnaire/commentaires-etudiants/', views.gestionnaire_commentaires_etudiants, name='gestionnaire_commentaires_etudiants'),
     path('gestionnaire/commentaires-enseignants/', views.gestionnaire_commentaires_enseignants, name='gestionnaire_commentaires_enseignants'),
     
+    # URLs Fiches de cotation
+    path('gestion/fiches-cotation/', views.gestion_fiches_cotation, name='gestion_fiches_cotation'),
+    path('gestion/fiches-cotation/pdf/', views.gestion_fiches_cotation_pdf, name='gestion_fiches_cotation_pdf'),
+    path('enseignant/evaluer/<str:code_cours>/<str:annee>/fiche-pdf/', views.enseignant_fiche_cotation_pdf, name='enseignant_fiche_cotation_pdf'),
+    path('jury/fiche-cotation-excel/<str:code_cours>/<str:annee>/', views.jury_fiche_cotation_excel, name='jury_fiche_cotation_excel'),
+
     # URLs Gestionnaire - Imports
     path('gestionnaire/import/attributions/', views.gestionnaire_import_attributions, name='gestionnaire_import_attributions'),
     path('gestionnaire/download/template-attributions/', views.telecharger_template_attributions, name='telecharger_template_attributions'),

@@ -355,7 +355,7 @@ def recuperer_donnees_profil(etudiant, classe_obj, annee, semestre):
     }
 
 
-def generer_profil_pdf(request, etudiant, classe_obj, annee, semestre, delib):
+def generer_profil_pdf(request, etudiant, classe_obj, annee, semestre, delib, dettes=None):
     """Génère le profil de l'étudiant en PDF avec ReportLab - format exact comme l'image"""
     
     buffer = BytesIO()
@@ -631,19 +631,10 @@ def generer_profil_pdf(request, etudiant, classe_obj, annee, semestre, delib):
     # Tableau récapitulatif - Ligne 1
     # Utiliser les données calculées (délibération ou standard)
     def _format_decimal(value):
-        """Formater un nombre avec un chiffre après la virgule sans arrondir"""
+        """Formater un nombre avec un chiffre après la virgule (arrondi correct)"""
         if value is None:
             return '-'
-        # Convertir en chaîne et garder un chiffre après la virgule
-        str_value = str(value)
-        if '.' in str_value:
-            parts = str_value.split('.')
-            if len(parts[1]) > 1:
-                return f"{parts[0]}.{parts[1][0]}"
-            else:
-                return str_value
-        else:
-            return f"{str_value}.0"
+        return f"{float(value):.1f}"
     
     moyenne_str = _format_decimal(moyenne)
     
@@ -735,7 +726,70 @@ def generer_profil_pdf(request, etudiant, classe_obj, annee, semestre, delib):
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
     ]))
     elements.append(summary2)
-    elements.append(Spacer(1, 0.8*cm))
+    elements.append(Spacer(1, 0.4*cm))
+
+    # Section Dettes
+    if dettes:
+        dette_title_style = ParagraphStyle(
+            'DetteTitleStyle',
+            parent=styles['Normal'],
+            fontSize=9,
+            leading=11,
+            fontName='Helvetica-Bold',
+            alignment=TA_LEFT,
+        )
+        if semestre:
+            sem_local = int(semestre) - 2 if int(semestre) > 2 else int(semestre)
+            titre_dettes = f'Suivi des Dettes — Semestre {sem_local}'
+        else:
+            titre_dettes = 'Suivi des Dettes'
+        elements.append(Paragraph(titre_dettes, dette_title_style))
+        elements.append(Spacer(1, 2*mm))
+
+        dette_header = [
+            Paragraph('<b>Code</b>', table_header_style),
+            Paragraph('<b>Intitulé</b>', table_header_style),
+            Paragraph('<b>Sem.</b>', table_header_style),
+            Paragraph('<b>Crédits</b>', table_header_style),
+            Paragraph('<b>Classe origine</b>', table_header_style),
+            Paragraph('<b>Statut</b>', table_header_style),
+        ]
+        dette_data = [dette_header]
+        for d in dettes:
+            code = d.code_ec.code_ec if d.code_ec else (d.code_ue.code_ue if d.code_ue else '-')
+            intitule = d.code_ec.intitule_ue if d.code_ec else (d.code_ue.intitule_ue if d.code_ue else '-')
+            if d.code_ec and d.code_ec.code_ue:
+                sem_str = f'S{d.code_ec.code_ue.semestre}'
+            elif d.code_ue:
+                sem_str = f'S{d.code_ue.semestre}'
+            else:
+                sem_str = '-'
+            credit = str(d.code_ec.credit) if d.code_ec else (str(d.code_ue.credit) if d.code_ue else '-')
+            classe_orig = d.code_classe.code_classe if d.code_classe else '-'
+            statut = 'Validée' if d.type_inscription == 'DETTE_LIQUIDEE' else 'En cours'
+            dette_data.append([
+                Paragraph(code, table_cell_style),
+                Paragraph(intitule, table_cell_style),
+                Paragraph(sem_str, table_cell_center),
+                Paragraph(credit, table_cell_center),
+                Paragraph(classe_orig, table_cell_center),
+                Paragraph(statut, table_cell_center),
+            ])
+
+        dette_table = Table(dette_data, colWidths=[2.5*cm, 6.5*cm, 1.2*cm, 1.5*cm, 3*cm, 3.3*cm])
+        dette_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#FFC107')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ]))
+        elements.append(dette_table)
+        elements.append(Spacer(1, 0.4*cm))
+    else:
+        elements.append(Spacer(1, 0.4*cm))
     
     # Date et lieu
     from datetime import datetime
@@ -747,7 +801,7 @@ def generer_profil_pdf(request, etudiant, classe_obj, annee, semestre, delib):
     # Récupérer les membres du jury de la classe
     from core.models import Jury, Enseignant
     try:
-        jury = Jury.objects.filter(code_classe=classe_obj).first()
+        jury = Jury.objects.filter(code_classe=classe_obj, annee_academique=annee).first()
         if jury:
             # Récupérer les informations depuis la table Enseignant en utilisant les matricules
             # Le champ membre/president/secretaire contient le matricule de l'enseignant

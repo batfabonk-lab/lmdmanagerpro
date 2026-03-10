@@ -69,13 +69,7 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-bold" for="decision_finale">Décision finale</label>
-                    <select name="decision_finale" id="decision_finale" class="form-select">
-                        <option value="">---</option>
-                        <option value="ACCEPTE" {% if recours.decision_finale == 'ACCEPTE' %}selected{% endif %}>Accepté</option>
-                        <option value="REJETE" {% if recours.decision_finale == 'REJETE' %}selected{% endif %}>Rejeté</option>
-                        <option value="PARTIELLEMENT_ACCEPTE" {% if recours.decision_finale == 'PARTIELLEMENT_ACCEPTE' %}selected{% endif %}>Partiellement accepté</option>
-                        <option value="SANS_SUITE" {% if recours.decision_finale == 'SANS_SUITE' %}selected{% endif %}>Classé sans suite</option>
-                    </select>
+                    <input type="text" name="decision_finale" id="decision_finale" class="form-control" placeholder="Saisir la décision..." value="{{ recours.decision_finale }}">
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-bold">Date d'envoi</label>
