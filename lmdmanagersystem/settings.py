@@ -27,6 +27,10 @@ INSTITUTION_SLUG = 'default'
 INSTITUTION_NAME = 'LMD Manager Pro'
 INSTITUTION_DOMAIN = 'lmdmanagerpro.com'
 
+# ═══ INSTITUTIONS : liste des institutions (overridée par local_settings.py) ═══
+# Clé = slug URL, database = clé dans DATABASES
+INSTITUTIONS = {}
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
@@ -59,6 +63,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'lmdmanagersystem.middleware.InstitutionMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -195,15 +200,18 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # Custom User Model
 AUTH_USER_MODEL = 'core.User'
 
-# Login URLs
-LOGIN_URL = '/login/'
-LOGIN_REDIRECT_URL = '/'
-LOGOUT_REDIRECT_URL = '/login/'
+# Login URLs (utiliser les noms de vues pour le prefixing automatique)
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'home'
+LOGOUT_REDIRECT_URL = 'login'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Database routing multi-institutions
+DATABASE_ROUTERS = ['lmdmanagersystem.db_router.InstitutionRouter']
 
 
 # ═══ LOCAL SETTINGS : override par instance (non versionné) ═══

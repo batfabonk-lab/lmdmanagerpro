@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LMD Manager Pro - Sélection de l'institution</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+        }
+        .container {
+            text-align: center;
+            max-width: 800px;
+            padding: 2rem;
+        }
+        .logo-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(90deg, #e94560, #533483);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            font-size: 1.1rem;
+            color: #a0a0b0;
+            margin-bottom: 3rem;
+        }
+        .institutions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .inst-card {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            padding: 2.5rem 2rem;
+            text-decoration: none;
+            color: #fff;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .inst-card:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: #e94560;
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(233, 69, 96, 0.2);
+        }
+        .inst-card .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        .inst-card .name {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .inst-card .slug {
+            font-size: 0.85rem;
+            color: #a0a0b0;
+        }
+        .footer {
+            margin-top: 3rem;
+            color: #555;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo-title">LMD Manager Pro</div>
+        <div class="subtitle">Sélectionnez votre institution</div>
+        
+        <div class="institutions-grid">
+            {% for slug, inst in institutions.items %}
+            <a href="/{{ slug }}/" class="inst-card">
+                <div class="icon">🏫</div>
+                <div class="name">{{ inst.name }}</div>
+                <div class="slug">/{{ slug }}/</div>
+            </a>
+            {% empty %}
+            <p style="color: #a0a0b0;">Aucune institution configurée.</p>
+            {% endfor %}
+        </div>
+        
+        <div class="footer">
+            &copy; 2026 LMD Manager Pro — Gestion Académique LMD
+        </div>
+    </div>
+</body>
+</html>
