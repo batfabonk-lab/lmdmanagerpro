@@ -1,15 +1,22 @@
+import logging
 import threading
 from django.conf import settings
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, HttpResponseServerError
 from django.shortcuts import render
 from django.urls import set_script_prefix
 
+logger = logging.getLogger(__name__)
 _thread_locals = threading.local()
 
 
 def get_current_db():
     """Retourne la base de données active pour l'institution courante."""
-    return getattr(_thread_locals, 'institution_db', 'default')
+    db = getattr(_thread_locals, 'institution_db', 'default')
+    # Vérifier que la BD existe dans la config, sinon fallback
+    if db not in settings.DATABASES:
+        logger.warning(f"Database alias '{db}' not in DATABASES, falling back to 'default'")
+        return 'default'
+    return db
 
 
 def get_current_institution_slug():
@@ -56,8 +63,26 @@ class InstitutionMiddleware:
         if slug and slug in institutions:
             inst = institutions[slug]
             
+            # Déterminer la BD à utiliser
+            db_alias = inst.get('database', slug)
+            if db_alias not in settings.DATABASES:
+                logger.error(
+                    f"Institution '{slug}': database alias '{db_alias}' "
+                    f"not found in DATABASES. Available: {list(settings.DATABASES.keys())}"
+                )
+                if settings.DEBUG:
+                    return HttpResponseServerError(
+                        f"<h1>Configuration Error</h1>"
+                        f"<p>Database alias '<b>{db_alias}</b>' for institution "
+                        f"'<b>{slug}</b>' not found in DATABASES.</p>"
+                        f"<p>Available databases: {list(settings.DATABASES.keys())}</p>"
+                        f"<p>Check your <code>local_settings.py</code>.</p>"
+                    )
+                # Fallback vers 'default' en production
+                db_alias = 'default'
+            
             # Définir le contexte institution sur le thread et la request
-            _thread_locals.institution_db = inst.get('database', slug)
+            _thread_locals.institution_db = db_alias
             _thread_locals.institution_slug = slug
             request.institution_slug = slug
             request.institution_name = inst.get('name', slug)
@@ -76,6 +101,9 @@ class InstitutionMiddleware:
             
             try:
                 response = self.get_response(request)
+            except Exception as e:
+                logger.exception(f"Error processing request for institution '{slug}': {e}")
+                raise
             finally:
                 # Nettoyer le thread-local
                 _thread_locals.institution_db = 'default'
