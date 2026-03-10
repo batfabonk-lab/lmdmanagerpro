@@ -19,9 +19,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Détection automatique PythonAnywhere
 ON_PYTHONANYWHERE = 'PYTHONANYWHERE_SITE' in os.environ or os.path.exists('/var/log/pythonanywhere')
 
-# Détection automatique cPanel (basée sur le chemin du serveur)
-ON_CPANEL = os.path.exists('/home/tumxxzse/ista-gm')
-CPANEL_DOMAIN = os.environ.get('CPANEL_DOMAIN', 'lmdmanagerpro.com')
+# Détection automatique cPanel
+ON_CPANEL = os.environ.get('ON_CPANEL', '') == '1' or os.path.exists('/home/tumxxzse')
+
+# ═══ INSTITUTION : valeurs par défaut (overridées par local_settings.py) ═══
+INSTITUTION_SLUG = 'default'
+INSTITUTION_NAME = 'LMD Manager Pro'
+INSTITUTION_DOMAIN = 'lmdmanagerpro.com'
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -32,28 +36,13 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-0^@(d49doum1_=
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = not (ON_PYTHONANYWHERE or ON_CPANEL)
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'lmdmanagerpro.com', 'www.lmdmanagerpro.com']
-if ON_PYTHONANYWHERE:
-    ALLOWED_HOSTS += [os.environ.get('PYTHONANYWHERE_DOMAIN', '.pythonanywhere.com')]
-if ON_CPANEL and CPANEL_DOMAIN:
-    ALLOWED_HOSTS += [CPANEL_DOMAIN, f'www.{CPANEL_DOMAIN}']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '*']
 
-# CSRF Trusted Origins
+# CSRF Trusted Origins (complété dynamiquement après local_settings)
 CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:8000',
     'http://localhost:8000',
-    'http://127.0.0.1:56272',
-    'http://localhost:56272',
-    'https://lmdmanagerpro.com',
-    'https://www.lmdmanagerpro.com',
 ]
-if ON_PYTHONANYWHERE:
-    PA_DOMAIN = os.environ.get('PYTHONANYWHERE_DOMAIN', '')
-    if PA_DOMAIN:
-        CSRF_TRUSTED_ORIGINS.append(f'https://{PA_DOMAIN}')
-if ON_CPANEL and CPANEL_DOMAIN:
-    CSRF_TRUSTED_ORIGINS.append(f'https://{CPANEL_DOMAIN}')
-    CSRF_TRUSTED_ORIGINS.append(f'https://www.{CPANEL_DOMAIN}')
 
 
 # Application definition
@@ -92,6 +81,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'core.context_processors.institution_info',
                 'core.context_processors.navbar_user_label',
                 'core.context_processors.sidebar_etudiant_profile',
             ],
@@ -122,14 +112,14 @@ if ON_PYTHONANYWHERE:
         }
     }
 elif ON_CPANEL:
-    # ═══ CPANEL : configurez via variables d'environnement ═══
+    # ═══ CPANEL : sera overridé par local_settings.py ═══
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.mysql',
-            'NAME': 'tumxxzse_lmdmanager',
-            'USER': 'tumxxzse',
-            'PASSWORD': '#61B9fzb7MwIW*',
-            'HOST': 'localhost',
+            'NAME': os.environ.get('DB_NAME', 'tumxxzse_lmdmanager'),
+            'USER': os.environ.get('DB_USER', 'tumxxzse'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'HOST': os.environ.get('DB_HOST', 'localhost'),
             'PORT': '3306',
             'OPTIONS': {
                 'charset': 'utf8mb4',
@@ -214,3 +204,18 @@ LOGOUT_REDIRECT_URL = '/login/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# ═══ LOCAL SETTINGS : override par instance (non versionné) ═══
+try:
+    from lmdmanagersystem.local_settings import *  # noqa: F401, F403
+except ImportError:
+    pass
+
+# Compléter CSRF_TRUSTED_ORIGINS après local_settings
+if INSTITUTION_DOMAIN:
+    CSRF_TRUSTED_ORIGINS += [
+        f'https://{INSTITUTION_DOMAIN}',
+        f'https://www.{INSTITUTION_DOMAIN}',
+        f'http://{INSTITUTION_DOMAIN}',
+    ]

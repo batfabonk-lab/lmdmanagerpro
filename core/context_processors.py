@@ -1,4 +1,14 @@
+from django.conf import settings
 from core.models import Enseignant, Etudiant, Inscription, Jury
+
+
+def institution_info(request):
+    """Injecte les infos de l'institution dans tous les templates."""
+    return {
+        'institution_slug': getattr(settings, 'INSTITUTION_SLUG', 'default'),
+        'institution_name': getattr(settings, 'INSTITUTION_NAME', 'LMD Manager Pro'),
+        'institution_domain': getattr(settings, 'INSTITUTION_DOMAIN', ''),
+    }
 
 
 def navbar_user_label(request):
