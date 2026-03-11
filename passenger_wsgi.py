@@ -12,7 +12,7 @@ if PROJECT_DIR not in sys.path:
 # Chemin vers l'environnement virtuel cPanel
 # Le chemin exact sera créé par Setup Python App dans cPanel
 # Vérifiez la version Python dans votre cPanel et adaptez si nécessaire
-VENV_DIR = os.path.join('/home/tumxxzse/virtualenv/ista-gm', '3.9')
+VENV_DIR = os.path.join('/home/tumxxzse/virtualenv/lmdmanagerpro', '3.9')
 VENV_SITE_PACKAGES = None
 
 # Recherche automatique du dossier site-packages dans le venv
