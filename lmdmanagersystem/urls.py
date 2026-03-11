@@ -19,8 +19,28 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
+from django.http import JsonResponse
+
+
+def _debug_config(request):
+    """Endpoint diagnostic temporaire — À SUPPRIMER après debug."""
+    key = request.GET.get('key')
+    if key != 'lmddiag2026':
+        return JsonResponse({'error': 'forbidden'}, status=403)
+    return JsonResponse({
+        'INSTITUTIONS': getattr(settings, 'INSTITUTIONS', 'NOT_SET'),
+        'DATABASES_keys': list(settings.DATABASES.keys()),
+        'MIDDLEWARE': settings.MIDDLEWARE,
+        'DATABASE_ROUTERS': getattr(settings, 'DATABASE_ROUTERS', []),
+        'DEBUG': settings.DEBUG,
+        'LOGIN_URL': settings.LOGIN_URL,
+        'PATH_INFO': request.META.get('PATH_INFO', '?'),
+        'SCRIPT_NAME': request.META.get('SCRIPT_NAME', '?'),
+    })
+
 
 urlpatterns = [
+    path('_diag/', _debug_config),
     path('admin/', admin.site.urls),
     path('', include('core.urls')),
     path('reglage/', include('reglage.urls')),
