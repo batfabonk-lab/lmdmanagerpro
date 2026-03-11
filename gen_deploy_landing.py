@@ -1,4 +1,4 @@
-"""Deploy landing page + login fix + context_processors + urls.py to server."""
+"""Deploy landing page + login + context_processors + urls + local_settings to server."""
 import base64, os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -11,8 +11,80 @@ files = [
     'core/context_processors.py',
 ]
 
+LOCAL_SETTINGS = """\
+\"\"\"
+Local settings for production - lmdmanagerpro.com
+\"\"\"
+
+INSTITUTION_DOMAIN = 'lmdmanagerpro.com'
+
+INSTITUTIONS = {
+    'ista-gm': {
+        'name': 'ISTA Gombe-Matadi',
+        'database': 'ista-gm',
+    },
+    'isp-mbanza-ngungu': {
+        'name': 'ISP Mbanza-Ngungu',
+        'database': 'isp-mbanza-ngungu',
+    },
+    'ift-mbanza-ngungu': {
+        'name': 'IFT Mbanza-Ngungu',
+        'database': 'ift-mbanza-ngungu',
+    },
+}
+
+_MYSQL_OPTIONS = {
+    'charset': 'utf8mb4',
+    'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+}
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'tumxxzse_lmdmanager',
+        'USER': 'tumxxzse',
+        'PASSWORD': '#61B9fzb7MwIW*',
+        'HOST': 'localhost',
+        'PORT': '3306',
+        'OPTIONS': _MYSQL_OPTIONS,
+    },
+    'ista-gm': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'tumxxzse_lmdmanager',
+        'USER': 'tumxxzse',
+        'PASSWORD': '#61B9fzb7MwIW*',
+        'HOST': 'localhost',
+        'PORT': '3306',
+        'OPTIONS': _MYSQL_OPTIONS,
+    },
+    'isp-mbanza-ngungu': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'tumxxzse_ispmbanza',
+        'USER': 'tumxxzse',
+        'PASSWORD': '#61B9fzb7MwIW*',
+        'HOST': 'localhost',
+        'PORT': '3306',
+        'OPTIONS': _MYSQL_OPTIONS,
+    },
+    'ift-mbanza-ngungu': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'tumxxzse_iftmbanza',
+        'USER': 'tumxxzse',
+        'PASSWORD': '#61B9fzb7MwIW*',
+        'HOST': 'localhost',
+        'PORT': '3306',
+        'OPTIONS': _MYSQL_OPTIONS,
+    },
+}
+
+SECRET_KEY = 'django-insecure-0^@(d49doum1_=piyq0kff7d8ey_lf9eu1ei3&m#b#6^3xo*r&'
+DEBUG = False
+"""
+
+ls_b64 = base64.b64encode(LOCAL_SETTINGS.encode('utf-8')).decode()
+
 php = '<?php\nheader("Content-Type: text/plain; charset=utf-8");\n'
-php += 'echo "=== Deploy: landing + login + urls ===\\n\\n";\n'
+php += 'echo "=== Deploy: landing v2 + login + ISTA name fix ===\\n\\n";\n'
 php += '$base = "/home/tumxxzse/lmdmanagerpro/";\n\n'
 
 for f in files:
@@ -24,6 +96,11 @@ for f in files:
     php += 'if (!is_dir($dir)) { mkdir($dir, 0755, true); }\n'
     php += 'file_put_contents($base . "' + f + '", $d);\n'
     php += 'echo "[' + f + '] " . strlen($d) . " bytes\\n";\n\n'
+
+# local_settings.py
+php += '$d = base64_decode("' + ls_b64 + '");\n'
+php += 'file_put_contents($base . "lmdmanagersystem/local_settings.py", $d);\n'
+php += 'echo "[local_settings.py] " . strlen($d) . " bytes\\n";\n\n'
 
 php += '$patterns = array($base."lmdmanagersystem/__pycache__/*.pyc", $base."core/__pycache__/*.pyc");\n'
 php += '$n=0; foreach($patterns as $p){foreach(glob($p) as $cf){unlink($cf);$n++;}}\n'
