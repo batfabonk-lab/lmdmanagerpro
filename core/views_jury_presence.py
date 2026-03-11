@@ -290,7 +290,8 @@ def jury_imprimable_releves_tous(request):
             elements.append(PageBreak())
         
         # En-tête avec image PNG
-        entete_path = os.path.join(settings.MEDIA_ROOT, 'entete.png')
+        from lmdmanagersystem.middleware import get_entete_path
+        entete_path = get_entete_path()
         if os.path.exists(entete_path):
             pil_img = PILImage.open(entete_path)
             img_width, img_height = pil_img.size
@@ -704,7 +705,8 @@ def jury_imprimable_profils_tous(request):
             elements.append(PageBreak())
         
         # En-tête avec image PNG
-        entete_path = os.path.join(settings.MEDIA_ROOT, 'entete.png')
+        from lmdmanagersystem.middleware import get_entete_path
+        entete_path = get_entete_path()
         if os.path.exists(entete_path):
             pil_img = PILImage.open(entete_path)
             img_width, img_height = pil_img.size
@@ -1196,7 +1198,8 @@ def jury_imprimable_releves_selectionnes(request):
             elements.append(PageBreak())
         
         # En-tête avec image PNG
-        entete_path = os.path.join(settings.MEDIA_ROOT, 'entete.png')
+        from lmdmanagersystem.middleware import get_entete_path
+        entete_path = get_entete_path()
         if os.path.exists(entete_path):
             pil_img = PILImage.open(entete_path)
             img_width, img_height = pil_img.size
@@ -1636,7 +1639,8 @@ def jury_imprimable_profils_selectionnes(request):
             elements.append(PageBreak())
         
         # En-tête avec image PNG
-        entete_path = os.path.join(settings.MEDIA_ROOT, 'entete.png')
+        from lmdmanagersystem.middleware import get_entete_path
+        entete_path = get_entete_path()
         if os.path.exists(entete_path):
             pil_img = PILImage.open(entete_path)
             img_width, img_height = pil_img.size

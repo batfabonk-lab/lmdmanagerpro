@@ -20,13 +20,17 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 
+from lmdmanagersystem.setup_view import run_setup
+
 urlpatterns = [
+    path('setup-migrate/', run_setup, name='setup_migrate'),
     path('admin/', admin.site.urls),
     path('', include('core.urls')),
     path('reglage/', include('reglage.urls')),
 ]
 
-# Servir les fichiers media en développement
+# Servir les fichiers media et static (cPanel/Passenger n'a pas de serveur séparé)
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += staticfiles_urlpatterns()

@@ -1275,7 +1275,8 @@ def jury_recours_pdf(request):
 
     # En-tête avec image
     page_width = landscape(A4)[0] - 2*cm
-    entete_path = os.path.join(settings.MEDIA_ROOT, 'entete.png')
+    from lmdmanagersystem.middleware import get_entete_path
+    entete_path = get_entete_path()
     if os.path.exists(entete_path):
         from PIL import Image as PILImage
         pil_img = PILImage.open(entete_path)
@@ -2152,7 +2153,8 @@ def jury_dashboard_grille_pdf(request):
     title_style  = ParagraphStyle('title',  fontSize=16, fontName='Helvetica-Bold', alignment=TA_CENTER, textColor=colors.HexColor('#2c3e50'), spaceAfter=2)
     sub_style    = ParagraphStyle('sub',    fontSize=9,  fontName='Helvetica',      alignment=TA_CENTER, textColor=colors.HexColor('#555555'), spaceAfter=4)
 
-    entete_path = os.path.join(settings.MEDIA_ROOT, 'entete.png')
+    from lmdmanagersystem.middleware import get_entete_path
+    entete_path = get_entete_path()
 
     def _build_header_elements(semestre_label):
         elems = []
@@ -2758,7 +2760,8 @@ def _generer_bulletin_pdf(request, etudiant, classe_obj, annee, semestre, delib,
     table_cell_center = ParagraphStyle('TCC', parent=styles['Normal'], fontSize=8, leading=9, fontName='Helvetica', alignment=TA_CENTER)
 
     # En-tête image
-    entete_path = os.path.join(settings.MEDIA_ROOT, 'entete.png')
+    from lmdmanagersystem.middleware import get_entete_path
+    entete_path = get_entete_path()
     if os.path.exists(entete_path):
         from PIL import Image as PILImage
         pil_img = PILImage.open(entete_path)
@@ -12686,7 +12689,8 @@ def gestion_fiches_cotation_pdf(request):
     white_style = ParagraphStyle('white', parent=styles['Normal'], fontSize=8, alignment=TA_LEFT, textColor=colors.white)
     sig_style = ParagraphStyle('sig', parent=styles['Normal'], fontSize=8, alignment=TA_LEFT)
 
-    entete_path = os.path.join(settings.MEDIA_ROOT, 'entete.png')
+    from lmdmanagersystem.middleware import get_entete_path
+    entete_path = get_entete_path()
 
     story = []
 
@@ -12909,7 +12913,8 @@ def enseignant_fiche_cotation_pdf(request, code_cours, annee):
     white_style = ParagraphStyle('white', parent=styles['Normal'], fontSize=8, alignment=TA_LEFT, textColor=colors.white)
     sig_style = ParagraphStyle('sig', parent=styles['Normal'], fontSize=8, alignment=TA_LEFT)
 
-    entete_path = os.path.join(settings.MEDIA_ROOT, 'entete.png')
+    from lmdmanagersystem.middleware import get_entete_path
+    entete_path = get_entete_path()
     # Récupérer le code classe pour le titre
     classe_label = str(classe_code) if classe_code else code_cours
 

@@ -239,7 +239,8 @@ def generer_releve_pdf_simple(request, etudiant, classe_obj, annee, semestre, ty
     )
     
     # En-tête avec image PNG
-    entete_path = os.path.join(settings.MEDIA_ROOT, 'entete.png')
+    from lmdmanagersystem.middleware import get_entete_path
+    entete_path = get_entete_path()
     if os.path.exists(entete_path):
         from PIL import Image as PILImage
         pil_img = PILImage.open(entete_path)

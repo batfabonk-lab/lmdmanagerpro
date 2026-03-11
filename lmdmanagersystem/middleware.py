@@ -24,6 +24,20 @@ def get_current_institution_slug():
     return getattr(_thread_locals, 'institution_slug', None)
 
 
+def get_entete_path():
+    """Retourne le chemin de l'image d'en-tête pour l'institution courante.
+    Cherche d'abord media/institutions/<slug>/entete.png,
+    puis fallback vers media/entete.png."""
+    import os
+    slug = get_current_institution_slug()
+    if slug:
+        path = os.path.join(settings.MEDIA_ROOT, 'institutions', slug, 'entete.png')
+        if os.path.exists(path):
+            return path
+    # Fallback
+    return os.path.join(settings.MEDIA_ROOT, 'entete.png')
+
+
 class InstitutionMiddleware:
     """
     Middleware qui gère le routing multi-institutions par URL prefix.

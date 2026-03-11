@@ -115,7 +115,8 @@ def generer_pv_pdf(request, classe_obj, annee, session, date_delib, decision_ref
     )
     
     # En-tête du document avec image PNG
-    entete_path = os.path.join(settings.MEDIA_ROOT, 'entete.png')
+    from lmdmanagersystem.middleware import get_entete_path
+    entete_path = get_entete_path()
     if os.path.exists(entete_path):
         from PIL import Image as PILImage
         pil_img = PILImage.open(entete_path)
