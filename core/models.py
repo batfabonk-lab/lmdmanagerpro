@@ -811,13 +811,18 @@ class Deliberation(models.Model):
         Ne change jamais VALIDE -> NON_VALIDE
         """
         from core.models import Inscription
-        
+
+        # En Master (M1/M2): aucune compensation annuelle
+        is_master = classe_obj and str(getattr(classe_obj, 'code_niveau_id', '')) in ('M1', 'M2')
+        if is_master:
+            return []
+
         # Récupérer tous les étudiants de la classe
         etudiants = Inscription.objects.filter(
             code_classe=classe_obj,
             annee_academique=annee_academique
         ).values_list('matricule_etudiant', flat=True).distinct()
-        
+
         compensations_appliquees = []
         
         for etudiant_id in etudiants:

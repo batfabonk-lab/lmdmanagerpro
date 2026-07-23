@@ -6119,23 +6119,25 @@ def jury_evaluer_cours(request, code_cours, annee):
                 ancien_rachat = eval_obj.rachat
                 
                 # Mettre à jour uniquement les champs réellement envoyés
+                def _parse_note(val):
+                    """Convertir une note en float, en gérant la virgule comme séparateur décimal."""
+                    if not val:
+                        return None
+                    return float(str(val).replace(',', '.'))
+
                 cc_key = f'cc_{matricule}'
                 examen_key = f'examen_{matricule}'
                 rattrapage_key = f'rattrapage_{matricule}'
                 rachat_key = f'rachat_{matricule}'
 
                 if cc_key in request.POST:
-                    cc_val = request.POST.get(cc_key)
-                    eval_obj.cc = float(cc_val) if cc_val else None
+                    eval_obj.cc = _parse_note(request.POST.get(cc_key))
                 if examen_key in request.POST:
-                    examen_val = request.POST.get(examen_key)
-                    eval_obj.examen = float(examen_val) if examen_val else None
+                    eval_obj.examen = _parse_note(request.POST.get(examen_key))
                 if rattrapage_key in request.POST:
-                    rattrapage_val = request.POST.get(rattrapage_key)
-                    eval_obj.rattrapage = float(rattrapage_val) if rattrapage_val else None
+                    eval_obj.rattrapage = _parse_note(request.POST.get(rattrapage_key))
                 if rachat_key in request.POST:
-                    rachat_val = request.POST.get(rachat_key)
-                    eval_obj.rachat = float(rachat_val) if rachat_val else None
+                    eval_obj.rachat = _parse_note(request.POST.get(rachat_key))
                 
                 # Détecter si le jury a modifié une note existante (pas une création)
                 note_modifiee = not created and (
@@ -13052,8 +13054,7 @@ def jury_fiche_cotation_excel(request, code_cours, annee):
             messages.error(request, 'Cours introuvable.')
             return redirect('jury_grille_cours')
 
-    # Vérifier si rattrapage/rachat activé
-    rattrapage_actif = False
+    # Vérifier si rachat activé (le rattrapage, lui, apparaît toujours dans la grille)
     rachat_actif = False
     if cours_info.get('classe'):
         param_eval = ParametreEvaluation.objects.filter(
@@ -13061,7 +13062,6 @@ def jury_fiche_cotation_excel(request, code_cours, annee):
             annee_academique=annee
         ).first()
         if param_eval:
-            rattrapage_actif = param_eval.rattrapage_actif
             rachat_actif = param_eval.rachat_actif
 
     # Récupérer les étudiants et leurs évaluations
@@ -13084,9 +13084,8 @@ def jury_fiche_cotation_excel(request, code_cours, annee):
                 'Nom Complet': insc.matricule_etudiant.nom_complet,
                 'CC (0-10)': eval_existante.cc if eval_existante and eval_existante.cc else '',
                 'Examen (0-10)': eval_existante.examen if eval_existante and eval_existante.examen else '',
+                'Rattrapage (0-20)': eval_existante.rattrapage if eval_existante and eval_existante.rattrapage else '',
             }
-            if rattrapage_actif:
-                row['Rattrapage (0-20)'] = eval_existante.rattrapage if eval_existante and eval_existante.rattrapage else ''
             if rachat_actif:
                 row['Rachat (0-20)'] = eval_existante.rachat if eval_existante and eval_existante.rachat else ''
             data.append(row)
